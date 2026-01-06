@@ -46,6 +46,9 @@ export function extractWikilinks(content: string): string[] {
 export function markdownToPlainText(markdown: string): string {
   return markdown
     .replace(/^#+\s+/gm, '') // Убираем заголовки
+    .replace(/!\[\[[^\]]+\]\]/g, '') // Убираем ![[image.png]]
+    .replace(/!\[[^\]]*\]\([^\)]+\)/g, '') // Убираем ![alt](path)
+    .replace(/<img[^>]+>/gi, '') // Убираем <img> теги
     .replace(/\[\[([^\]]+)\]\]/g, '$1') // [[links]] -> links
     .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // [text](url) -> text
     .replace(/\*\*([^\*]+)\*\*/g, '$1') // **bold** -> bold
@@ -53,6 +56,7 @@ export function markdownToPlainText(markdown: string): string {
     .replace(/`([^`]+)`/g, '$1') // `code` -> code
     .replace(/^\s*[-*+]\s+/gm, '') // Убираем маркеры списков
     .replace(/^\s*\d+\.\s+/gm, '') // Убираем нумерацию
+    .replace(/^\s*!?[^\s]+\.(png|jpg|jpeg|gif|webp|svg)\s*/gim, '') // Убираем названия файлов изображений в начале строки
     .replace(/\n+/g, ' ') // Множественные переносы -> пробел
     .trim();
 }

@@ -54,7 +54,7 @@ export function ArcheSidebar() {
   }, {} as Record<string, typeof notes>);
 
   return (
-    <Sidebar collapsible="offcanvas" variant="inset">
+    <Sidebar collapsible="offcanvas" variant="sidebar">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Заметки</SidebarGroupLabel>
@@ -106,7 +106,6 @@ export function ArcheSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarRail />
     </Sidebar>
   );
 }

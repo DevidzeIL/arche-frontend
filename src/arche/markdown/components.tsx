@@ -156,7 +156,7 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
   const processedContent = preprocessWikilinks(content);
 
   return (
-    <div className={cn('prose prose-slate dark:prose-invert max-w-none prose-headings:font-semibold prose-p:leading-7 prose-a:text-primary prose-strong:font-semibold', className)}>
+    <div className={cn('prose max-w-none prose-headings:font-semibold prose-p:leading-7 prose-a:text-primary prose-strong:font-semibold', className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

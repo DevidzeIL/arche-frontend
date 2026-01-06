@@ -1,21 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useArcheStore } from '../state/store';
 import { ArcheSidebar } from './Sidebar';
 import { ArcheTabs } from './Tabs';
 import { NoteViewer } from './NoteViewer';
-import { GraphView } from '../graph/GraphView';
+// Graph removed
 import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Moon, Sun, Network } from 'lucide-react';
-
-type ViewMode = 'notes' | 'graph';
+import { Moon, Sun } from 'lucide-react';
 
 export function Dashboard() {
-  const [viewMode, setViewMode] = useState<ViewMode>('notes');
   const loaded = useArcheStore((state) => state.loaded);
   const loadNotes = useArcheStore((state) => state.loadNotes);
   const theme = useArcheStore((state) => state.settings.theme);
@@ -70,14 +67,6 @@ export function Dashboard() {
             <h1 className="text-xl font-semibold">Arche Explorer</h1>
             <div className="flex items-center gap-2">
               <Button
-                variant={viewMode === 'graph' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('graph')}
-              >
-                <Network className="mr-2 h-4 w-4" />
-                Graph View
-              </Button>
-              <Button
                 variant="outline"
                 size="icon"
                 onClick={toggleTheme}
@@ -92,18 +81,10 @@ export function Dashboard() {
           </div>
         </header>
 
-        {viewMode === 'notes' ? (
-          <>
-            <ArcheTabs />
-            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-              <NoteViewer />
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-            <GraphView />
-          </div>
-        )}
+        <ArcheTabs />
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          <NoteViewer />
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

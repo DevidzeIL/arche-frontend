@@ -28,33 +28,10 @@ export interface Tab {
   pinned: boolean;
 }
 
-export interface GraphSettings {
-  nodeColors: Record<string, string>;
-  nodeSizeBy: 'links' | 'fixed';
-  linkDistance: number;
-  chargeStrength: number;
-  filters: {
-    types: string[];
-    domains: string[];
-    statuses: string[];
-    folders: string[];
-  };
-  showOnlyConnected: boolean;
-  selectedNodeId: string | null;
-  showArrows: boolean;
-  textFadeThreshold: number; // 0..1
-  linkThickness: number;
-  nodeSize: number; // базовый размер ноды
-  centerForce: number;
-  repelForce: number;
-  linkForce: number;
-}
-
 export interface AppSettings {
   theme: 'light' | 'dark';
   sidebarOpen: boolean;
   tabs: Tab[];
   activeTabId: string | null;
-  graphSettings: GraphSettings;
 }
 
