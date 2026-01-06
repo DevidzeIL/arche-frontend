@@ -2,7 +2,6 @@ import { useArcheStore } from '../state/store';
 import { MarkdownViewer } from '../markdown/components';
 import { NoteMetaCard } from './NoteMetaCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 import { useArcheStore as useStore } from '../state/store';
 
@@ -29,7 +28,7 @@ export function NoteViewer() {
     .filter((link) => link.note || true); // Показываем все, даже не найденные
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden h-full">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Заголовок */}
         <div>
@@ -58,16 +57,17 @@ export function NoteViewer() {
                 {outgoingLinks.map((link) => (
                   <div key={link.title}>
                     {link.note ? (
-                      <Button
-                        variant="link"
-                        className="p-0 h-auto font-normal text-left justify-start"
+                      <button
                         onClick={() => openNote(link.note!.id)}
+                        className="w-full text-left px-3 py-2 rounded-md border border-border bg-card hover:bg-accent hover:border-primary transition-colors flex items-center justify-between group"
                       >
-                        {link.title}
-                        <ExternalLink className="ml-2 h-3 w-3" />
-                      </Button>
+                        <span className="text-sm font-medium text-foreground group-hover:text-primary">
+                          {link.title}
+                        </span>
+                        <ExternalLink className="ml-2 h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                      </button>
                     ) : (
-                      <div className="text-sm text-muted-foreground">
+                      <div className="px-3 py-2 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 text-sm text-muted-foreground">
                         {link.title} <span className="text-xs">(не найдено)</span>
                       </div>
                     )}
@@ -85,15 +85,16 @@ export function NoteViewer() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {backlinks.map((note) => (
-                  <Button
+                  <button
                     key={note.id}
-                    variant="link"
-                    className="p-0 h-auto font-normal text-left justify-start"
                     onClick={() => openNote(note.id)}
+                    className="w-full text-left px-3 py-2 rounded-md border border-border bg-card hover:bg-accent hover:border-primary transition-colors flex items-center justify-between group"
                   >
-                    {note.title}
-                    <ExternalLink className="ml-2 h-3 w-3" />
-                  </Button>
+                    <span className="text-sm font-medium text-foreground group-hover:text-primary">
+                      {note.title}
+                    </span>
+                    <ExternalLink className="ml-2 h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                  </button>
                 ))}
               </CardContent>
             </Card>

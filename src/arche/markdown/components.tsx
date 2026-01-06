@@ -3,6 +3,81 @@ import remarkGfm from 'remark-gfm';
 import { useArcheStore } from '../state/store';
 import { cn } from '@/lib/utils';
 
+// Загружаем все изображения из _imgs через import.meta.glob
+// Используем ?url для получения URL изображений
+let imageModules: Record<string, any> = {};
+
+// Вариант 1: относительно src/arche/markdown (как в parser)
+imageModules = import.meta.glob('../../arche-vault/_imgs/**/*.{png,jpg,jpeg,gif,webp,svg}?url', {
+  eager: true,
+  import: 'default',
+});
+
+// Вариант 2: если первый не сработал
+if (Object.keys(imageModules).length === 0) {
+  imageModules = import.meta.glob('../arche-vault/_imgs/**/*.{png,jpg,jpeg,gif,webp,svg}?url', {
+    eager: true,
+    import: 'default',
+  });
+}
+
+// Вариант 3: с ведущим слешем
+if (Object.keys(imageModules).length === 0) {
+  imageModules = import.meta.glob('/arche-vault/_imgs/**/*.{png,jpg,jpeg,gif,webp,svg}?url', {
+    eager: true,
+    import: 'default',
+  });
+}
+
+console.log('Loaded images:', Object.keys(imageModules).length);
+if (Object.keys(imageModules).length > 0) {
+  console.log('Sample image paths:', Object.keys(imageModules).slice(0, 3));
+  console.log('Sample image URLs:', Object.values(imageModules).slice(0, 3));
+}
+
+// Функция для получения URL изображения
+function getImageUrl(filename: string): string | null {
+  // Нормализуем имя файла
+  const normalizedFilename = filename.trim();
+  
+  // Нормализуем пути в imageModules (убираем префиксы как в parser)
+  const normalizedModules: Record<string, string> = {};
+  for (const [path, url] of Object.entries(imageModules)) {
+    let normalizedPath = path
+      .replace(/^\.\.\/\.\.\/arche-vault\/_imgs\//, '')
+      .replace(/^\.\.\/arche-vault\/_imgs\//, '')
+      .replace(/^\/arche-vault\/_imgs\//, '')
+      .replace(/^\.\/arche-vault\/_imgs\//, '')
+      .replace(/^arche-vault\/_imgs\//, '');
+    
+    const pathFilename = normalizedPath.split('/').pop() || normalizedPath;
+    normalizedModules[pathFilename] = url as string;
+  }
+  
+  // Ищем точное совпадение
+  if (normalizedModules[normalizedFilename]) {
+    return normalizedModules[normalizedFilename];
+  }
+  
+  // Ищем с учётом пробелов
+  for (const [pathFilename, url] of Object.entries(normalizedModules)) {
+    if (pathFilename.trim() === normalizedFilename || 
+        pathFilename.replace(/\s+/g, ' ') === normalizedFilename.replace(/\s+/g, ' ')) {
+      return url;
+    }
+  }
+  
+  // Ищем по части имени
+  for (const [pathFilename, url] of Object.entries(normalizedModules)) {
+    if (pathFilename.includes(normalizedFilename) || normalizedFilename.includes(pathFilename)) {
+      return url;
+    }
+  }
+  
+  console.warn('Image not found:', normalizedFilename, 'Available:', Object.keys(normalizedModules));
+  return null;
+}
+
 interface WikilinkButtonProps {
   title: string;
   displayText?: string;
@@ -36,8 +111,30 @@ export function WikilinkButton({ title, displayText }: WikilinkButtonProps) {
 
 // Преобразуем wikilinks в markdown-ссылки перед рендерингом
 function preprocessWikilinks(content: string): string {
-  // Заменяем [[Title]] и [[Title|Alias]] на markdown-ссылки с специальным форматом
-  return content.replace(
+  let processed = content;
+  
+  // Сначала обрабатываем изображения с wikilinks: ![[filename]] или ![[filename|alt]]
+  processed = processed.replace(
+    /!\[\[([^\]]+)\]\]/g,
+    (_match, linkText) => {
+      const [filename, alt] = linkText.split('|').map((s: string) => s.trim());
+      const imagePath = `/arche-vault/_imgs/${filename}`;
+      return `![${alt || filename}](${imagePath})`;
+    }
+  );
+  
+  // Затем обрабатываем изображения с wikilinks в формате markdown: ![alt](wikilink:filename)
+  processed = processed.replace(
+    /!\[([^\]]*)\]\(wikilink:([^\)]+)\)/g,
+    (_match, alt, filename) => {
+      // Преобразуем в путь к изображению
+      const imagePath = `/arche-vault/_imgs/${filename}`;
+      return `![${alt}](${imagePath})`;
+    }
+  );
+  
+  // Затем обрабатываем обычные wikilinks: [[Title]] и [[Title|Alias]]
+  processed = processed.replace(
     /\[\[([^\]]+)\]\]/g,
     (_match, linkText) => {
       const [title, alias] = linkText.split('|').map((s: string) => s.trim());
@@ -46,6 +143,8 @@ function preprocessWikilinks(content: string): string {
       return `[${displayText}](wikilink:${title})`;
     }
   );
+  
+  return processed;
 }
 
 interface MarkdownViewerProps {
@@ -98,6 +197,46 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
           },
           pre: ({ children }) => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-4">{children}</pre>,
           blockquote: ({ children }) => <blockquote className="border-l-4 border-muted-foreground pl-4 italic my-4">{children}</blockquote>,
+          img: ({ src, alt, ...props }) => {
+            if (!src) return null;
+            
+            let imageSrc = src;
+            
+            // Если это путь к изображению из _imgs
+            if (src.includes('_imgs/') || src.startsWith('/arche-vault/_imgs/')) {
+              // Убеждаемся, что путь начинается с /arche-vault/_imgs/
+              if (!src.startsWith('/arche-vault/_imgs/')) {
+                const filename = src.split('/').pop() || src;
+                imageSrc = `/arche-vault/_imgs/${filename}`;
+              }
+              
+              // Пытаемся также найти через import.meta.glob (если доступно)
+              const filename = imageSrc.split('/').pop() || '';
+              const url = getImageUrl(filename);
+              if (url) {
+                imageSrc = url;
+              }
+            }
+            
+            return (
+              <img
+                src={imageSrc}
+                alt={alt || ''}
+                className="max-w-full h-auto rounded-lg my-4 border border-border shadow-sm"
+                onError={(e) => {
+                  console.error('Failed to load image:', imageSrc);
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  // Показываем placeholder
+                  const placeholder = document.createElement('div');
+                  placeholder.className = 'my-4 p-4 border border-dashed border-muted-foreground/30 rounded-lg bg-muted/30 text-sm text-muted-foreground';
+                  placeholder.textContent = `Изображение не найдено: ${imageSrc.split('/').pop()}`;
+                  target.parentNode?.insertBefore(placeholder, target);
+                }}
+                {...props}
+              />
+            );
+          },
         }}
       >
         {processedContent}

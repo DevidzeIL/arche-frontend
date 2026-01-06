@@ -63,7 +63,7 @@ export function Dashboard() {
   return (
     <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <ArcheSidebar />
-      <SidebarInset>
+      <SidebarInset className="h-screen flex flex-col overflow-hidden">
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger />
           <div className="flex items-center justify-between flex-1">
@@ -95,12 +95,12 @@ export function Dashboard() {
         {viewMode === 'notes' ? (
           <>
             <ArcheTabs />
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
               <NoteViewer />
             </div>
           </>
         ) : (
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             <GraphView />
           </div>
         )}

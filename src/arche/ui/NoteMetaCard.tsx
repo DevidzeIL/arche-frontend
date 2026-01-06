@@ -17,7 +17,12 @@ export function NoteMetaCard({ note }: NoteMetaCardProps) {
     <Card>
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger asChild>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
+          <CardHeader 
+            className={cn(
+              "flex flex-row items-center justify-between space-y-0 cursor-pointer hover:bg-muted/50 transition-colors",
+              isOpen ? "rounded-t-lg pb-2" : "rounded-lg"
+            )}
+          >
             <CardTitle className="text-sm font-medium">Метаданные</CardTitle>
             <ChevronDown
               className={cn(

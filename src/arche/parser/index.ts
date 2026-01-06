@@ -141,14 +141,16 @@ export async function loadNotes(): Promise<ArcheNote[]> {
   
   // Вариант 1: относительно src (рекомендуемый)
   foundModules = import.meta.glob('../arche-vault/**/*.md', {
-    as: 'raw',
+    query: '?raw',
+    import: 'default',
     eager: true,
   });
 
   // Вариант 2: с ведущим слешем (если первый не работает)
   if (Object.keys(foundModules).length === 0) {
     foundModules = import.meta.glob('/arche-vault/**/*.md', {
-      as: 'raw',
+      query: '?raw',
+      import: 'default',
       eager: true,
     });
   }
@@ -156,7 +158,8 @@ export async function loadNotes(): Promise<ArcheNote[]> {
   // Вариант 3: с './' (относительно корня)
   if (Object.keys(foundModules).length === 0) {
     foundModules = import.meta.glob('./arche-vault/**/*.md', {
-      as: 'raw',
+      query: '?raw',
+      import: 'default',
       eager: true,
     });
   }

@@ -17,7 +17,8 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, Search, Play, Bug } from 'lucide-react';
+import { X, Search, Play, Bug, Zap } from 'lucide-react';
+import { PixiGraphView } from './pixi';
 
 // Утилита для создания ключа связи (безопасна для ID с дефисами)
 // Используем null-символ как разделитель (не встречается в ID)
@@ -50,7 +51,7 @@ interface GraphLink {
 }
 
 export function GraphView() {
-  const fgRef = useRef<any>();
+  const fgRef = useRef<any>(null);
   const graphWrapperRef = useRef<HTMLDivElement>(null);
   const notes = useArcheStore((state) => state.notes);
   const openNote = useArcheStore((state) => state.openNote);
@@ -64,6 +65,28 @@ export function GraphView() {
   const [debugMode, setDebugMode] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [usePixiGraph, setUsePixiGraph] = useState(false);
+  
+  // Obsidian-like simulation control (через cooldownTicks — надёжный способ)
+  const [cooldownTicks, setCooldownTicks] = useState(120); // быстрый settle
+  
+  const settleSimulation = () => {
+    const fg = fgRef.current;
+    if (!fg) return;
+    
+    // Быстрый settle: ограниченное количество тиков
+    setCooldownTicks(120);
+    fg.d3ReheatSimulation();
+  };
+
+  const reheat = () => {
+    // "Animate" button: reheat с чуть более долгой симуляцией
+    const fg = fgRef.current;
+    if (!fg) return;
+    
+    setCooldownTicks(180);
+    fg.d3ReheatSimulation();
+  };
 
   // Строим граф - ВСЕГДА строки в source/target
   const { nodes, links } = useMemo(() => {
@@ -305,13 +328,14 @@ export function GraphView() {
   const getNodeColor = (node: GraphNode): string => {
     const isHighlighted = highlightNodes.has(node.id);
     let color = graphSettings.nodeColors[node.type || ''] || 
-      (node.type === 'person' ? '#3b82f6' :
-       node.type === 'concept' ? '#10b981' :
-       node.type === 'event' ? '#f59e0b' :
-       node.type === 'work' ? '#8b5cf6' :
-       node.type === 'place' ? '#ef4444' :
-       node.type === 'time' ? '#06b6d4' :
-       node.type === 'note' ? '#6b7280' : '#9ca3af');
+      (node.type === 'hub' ? '#EAB876' :        // Золотистый акцент
+       node.type === 'person' ? '#679D86' :     // Приглушенный зеленый
+       node.type === 'concept' ? '#83C0E9' :    // Мягкий голубой
+       node.type === 'work' ? '#D69BB6' :       // Пыльная роза
+       node.type === 'time' ? '#A29BFE' :       // Мягкая лаванда
+       node.type === 'tag' ? '#8E9AAF' :        // Серо-голубой (служебные)
+       node.type === 'note' ? '#8E9AAF' :        // Серо-голубой
+       '#8E9AAF');                               // Серо-голубой по умолчанию
     
     // Fog of war: если есть hovered node и текущая нода не highlighted - делаем приглушённой
     if (hoveredNodeId && !isHighlighted) {
@@ -326,34 +350,46 @@ export function GraphView() {
     return color;
   };
 
-  // Размер нод
+  // Размер нод в зависимости от количества соединений
   const getNodeSize = (node: GraphNode): number => {
-    if (graphSettings.nodeSizeBy === 'links') {
-      return Math.max(3, Math.min(10, graphSettings.nodeSize + node.links * 0.3));
-    }
-    return graphSettings.nodeSize;
+    // Базовый размер + масштабирование по количеству входящих связей
+    const baseSize = graphSettings.nodeSize;
+    const linksCount = node.links || 0;
+    
+    // Логарифмическое масштабирование для более плавного роста
+    // Больше связей = больше размер, но с убывающей скоростью
+    const sizeMultiplier = 1 + Math.log(1 + linksCount * 0.5) * 0.8;
+    const calculatedSize = baseSize * sizeMultiplier;
+    
+    // Ограничиваем размер: минимум 3, максимум 20
+    return Math.max(3, Math.min(20, calculatedSize));
   };
 
   // Состояние для globalScale (обновляется через onZoom)
   const [globalScale, setGlobalScale] = useState(1);
 
-  // Цвет и толщина связей с учетом hover и zoom (fog of war)
+  // Цвет и толщина связей с учетом hover и zoom (LOD + fog of war, Obsidian-like)
   const getLinkColor = (link: GraphLink): string => {
     const linkKey = linkKeyOf(link.source, link.target);
     const isHighlighted = highlightLinks.has(linkKey);
     
+    // LOD: на очень далёком зуме почти выключаем рёбра (Obsidian behavior)
+    if (globalScale < 0.45) {
+      return isHighlighted ? 'rgba(131, 192, 233, 0.75)' : 'rgba(150, 150, 150, 0.02)';
+    }
+    
     if (isHighlighted) {
-      // Подсвеченные связи: яркий цвет, opacity не зависит от zoom
-      return 'rgba(96, 165, 250, 0.85)';
+      // Подсвеченные связи при hover: яркий цвет с высокой непрозрачностью
+      return 'rgba(131, 192, 233, 0.95)'; // Мягкий голубой (#83C0E9) с высокой видимостью
     }
     
     // Fog of war: не-соседние связи почти невидимые при hover
     if (hoveredNodeId) {
-      return 'rgba(150, 150, 150, 0.08)';
+      return 'rgba(150, 150, 150, 0.06)';
     }
     
     // Обычные связи: opacity зависит от zoom
-    const baseOpacity = globalScale < 1 ? 0.28 : 0.18;
+    const baseOpacity = globalScale < 1 ? 0.18 : 0.12;
     return `rgba(150, 150, 150, ${baseOpacity})`;
   };
 
@@ -362,9 +398,9 @@ export function GraphView() {
     const isHighlighted = highlightLinks.has(linkKey);
     const baseWidth = graphSettings.linkThickness;
     
-    // Подсвеченные связи: толще
+    // Подсвеченные связи при hover: заметно толще и ярче
     if (isHighlighted) {
-      const highlightedWidth = baseWidth * 1.6;
+      const highlightedWidth = baseWidth * 2.0; // Увеличено с 1.6 до 2.0 для большей заметности
       if (globalScale < 1) {
         return highlightedWidth;
       }
@@ -387,7 +423,7 @@ export function GraphView() {
     [nodes]
   );
 
-  // Правильная настройка forces
+  // Правильная настройка forces (Obsidian-like) + предотвращение перекрытий
   useEffect(() => {
     const fg = fgRef.current;
     if (!fg) return;
@@ -400,52 +436,100 @@ export function GraphView() {
 
     const charge = fg.d3Force('charge');
     if (charge) {
-      charge.strength(graphSettings.repelForce);
+      // Усиливаем отталкивание для предотвращения перекрытий
+      // Учитываем, что ноды имеют разные размеры - нужно более сильное отталкивание
+      // Используем динамический расчёт на основе среднего размера нод
+      const avgNodeSize = filteredData.nodes.length > 0
+        ? filteredData.nodes.reduce((sum, n) => sum + getNodeSize(n), 0) / filteredData.nodes.length
+        : graphSettings.nodeSize;
+      
+      // Усиливаем отталкивание пропорционально размеру нод
+      const sizeMultiplier = Math.max(1, avgNodeSize / 5);
+      charge.strength(graphSettings.repelForce * 2.0 * sizeMultiplier);
     }
 
-    // Center force не имеет strength, но можно использовать его для центрирования
-    // Используем встроенный center force (он всегда есть)
+    // Добавляем collision force для предотвращения перекрытий нод
+    // Используем d3Force API react-force-graph-2d
+    try {
+      // Проверяем, есть ли уже collision force
+      let collision = fg.d3Force('collision');
+      
+      if (!collision) {
+        // Пытаемся создать через внутренний API
+        // react-force-graph-2d может иметь доступ к d3 через внутренние методы
+        const simulation = fg.d3ForceSimulation?.();
+        if (simulation) {
+          // Попробуем использовать d3Force для добавления кастомной силы
+          // Если d3 доступен глобально (через react-force-graph-2d)
+          const d3Module = (window as any).d3 || (globalThis as any).d3;
+          if (d3Module && d3Module.forceCollide) {
+            collision = d3Module.forceCollide((node: any) => {
+              const nodeSize = getNodeSize(node);
+              return nodeSize + 4; // +4 пикселя отступ
+            }).strength(0.95);
+            fg.d3Force('collision', collision);
+          }
+        }
+      } else {
+        // Обновляем существующий collision force
+        collision.radius((node: any) => {
+          const nodeSize = getNodeSize(node);
+          return nodeSize + 4;
+        });
+        if (collision.strength) {
+          collision.strength(0.95);
+        }
+      }
+    } catch (e) {
+      // Если collision force недоступен, просто усилим charge force
+      console.debug('Collision force not available, using enhanced charge force');
+    }
 
-    // Настройки для "воды" - cooldownTicks={Infinity} уже делает симуляцию живой
-    // alphaDecay и velocityDecay настраиваются через props компонента или остаются по умолчанию
-    // Для более тонкой настройки нужно использовать внутренний API d3, что не всегда доступно
-
-    fg.d3ReheatSimulation();
+    // Мягко "досадить" после изменения сил
+    settleSimulation();
   }, [
     graphSettings.linkDistance,
     graphSettings.linkForce,
     graphSettings.repelForce,
     graphSettings.centerForce,
+    filteredData.nodes, // Добавляем для пересчёта размеров
   ]);
 
   // Автоматический zoom при изменении данных (только при initial load)
   const [hasInitialZoom, setHasInitialZoom] = useState(false);
   useEffect(() => {
-    if (fgRef.current && filteredData.nodes.length > 0 && !hasInitialZoom) {
+    if (!fgRef.current) return;
+    if (filteredData.nodes.length === 0) return;
+
+    // Initial settle: быстро "садим" граф как в Obsidian
+    settleSimulation();
+
+    // Мягкий fit только один раз
+    if (!hasInitialZoom) {
       const timer = setTimeout(() => {
-        fgRef.current?.zoomToFit(600, 40);
+        fgRef.current?.zoomToFit(700, 60);
         setHasInitialZoom(true);
-      }, 200);
+      }, 250);
       return () => clearTimeout(timer);
     }
-  }, [filteredData.nodes.length, hasInitialZoom]);
+  }, [filteredData.nodes.length]);
 
-  // Кнопка Animate/Reheat
+  // Кнопка Animate/Reheat (Obsidian-like)
   const handleAnimate = () => {
     if (fgRef.current) {
-      fgRef.current.d3ReheatSimulation();
-      fgRef.current.zoomToFit(600, 40);
+      reheat();
+      fgRef.current.zoomToFit(700, 60);
     }
   };
 
-  // Unpin all nodes
+  // Unpin all nodes (Obsidian-like)
   const handleUnpinAll = () => {
     if (fgRef.current) {
       filteredData.nodes.forEach((node: any) => {
         node.fx = null;
         node.fy = null;
       });
-      fgRef.current.d3ReheatSimulation();
+      settleSimulation();
     }
   };
 
@@ -460,6 +544,19 @@ export function GraphView() {
                 <CardTitle className="text-lg">Фильтры</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Переключатель графа */}
+                <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
+                  <Label htmlFor="usePixiGraph" className="cursor-pointer flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    Pixi + Matter.js граф
+                  </Label>
+                  <Switch
+                    id="usePixiGraph"
+                    checked={usePixiGraph}
+                    onCheckedChange={setUsePixiGraph}
+                  />
+                </div>
+
                 {/* Поиск */}
                 <div>
                   <Label>Поиск</Label>
@@ -874,6 +971,19 @@ export function GraphView() {
           <div className="flex items-center justify-center h-full text-muted-foreground">
             Нет данных для отображения
           </div>
+        ) : usePixiGraph ? (
+          <PixiGraphView
+            nodes={filteredData.nodes}
+            edges={filteredData.links}
+            onNodeClick={(nodeId) => {
+              updateGraphSettings({ selectedNodeId: nodeId });
+              setSelectedNodeId(nodeId);
+              openNote(nodeId);
+            }}
+            onNodeHover={(nodeId) => {
+              setHoveredNodeId(nodeId);
+            }}
+          />
         ) : (
           <ForceGraph2D
             ref={fgRef}
@@ -892,18 +1002,29 @@ export function GraphView() {
               }
             }}
             linkCurvature={0.1}
-            cooldownTicks={Infinity}
+            cooldownTicks={cooldownTicks}
             enableNodeDrag={true}
             onNodeDrag={() => {
               setIsDragging(true);
-              fgRef.current?.d3ReheatSimulation();
+              
+              const fg = fgRef.current;
+              if (fg) {
+                // При drag даём немного больше времени симуляции
+                setCooldownTicks(60);
+                fg.d3ReheatSimulation();
+              }
             }}
             onNodeDragEnd={(node: any) => {
               setIsDragging(false);
+
+              // Obsidian-like: "прикалываем" перетащенную ноду
               if (node) {
                 node.fx = node.x;
                 node.fy = node.y;
               }
+
+              // Даём системе мягко "досесть"
+              settleSimulation();
             }}
             onNodeHover={(node: any) => {
               setHoveredNodeId(node ? node.id : null);
@@ -938,24 +1059,23 @@ export function GraphView() {
 
               ctx.save();
 
-              // 1. Glow для hovered ноды (внешнее свечение)
+              // 1. Glow для hovered ноды (минимализм, Obsidian-like)
               if (isHovered && x !== undefined && y !== undefined) {
-                const glowRadius = visualNodeSize + 8;
+                const glowRadius = visualNodeSize + 6;
                 const gradient = ctx.createRadialGradient(x, y, visualNodeSize, x, y, glowRadius);
-                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
-                gradient.addColorStop(0.5, 'rgba(173, 216, 230, 0.15)');
-                gradient.addColorStop(1, 'rgba(173, 216, 230, 0)');
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.10)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
                 ctx.fillStyle = gradient;
                 ctx.beginPath();
                 ctx.arc(x, y, glowRadius, 0, 2 * Math.PI);
                 ctx.fill();
               }
 
-              // 2. Glow для selected ноды (слабее, если не hovered)
+              // 2. Glow для selected ноды (ещё слабее, Obsidian-like)
               if (isSelected && !isHovered && x !== undefined && y !== undefined) {
-                const glowRadius = visualNodeSize + 6;
+                const glowRadius = visualNodeSize + 5;
                 const gradient = ctx.createRadialGradient(x, y, visualNodeSize, x, y, glowRadius);
-                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
                 gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
                 ctx.fillStyle = gradient;
                 ctx.beginPath();
@@ -992,9 +1112,14 @@ export function GraphView() {
 
               ctx.restore();
 
-              // 6. Текст/лейблы (Obsidian-like)
-              // В hover режиме показываем ТОЛЬКО для hovered и соседей
-              const shouldShowLabel = s >= threshold && (!hoveredNodeId || isHighlighted);
+              // 6. Текст/лейблы (Obsidian-like LOD: 3 режима по zoom)
+              // s < 0.55: не показывать вообще
+              // 0.55 <= s < 0.95: только hovered/selected
+              // s >= 0.95: всё highlighted (как сейчас)
+              const shouldShowLabel =
+                s >= 0.95 ? (!hoveredNodeId || isHighlighted || isSelected || isHovered) :
+                s >= 0.55 ? (isHovered || isSelected) :
+                false;
               
               if (shouldShowLabel) {
                 const fadeRange = 0.4;
