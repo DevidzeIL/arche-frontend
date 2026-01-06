@@ -86,9 +86,9 @@ export const useArcheStore = create<ArcheStore>()(
               parsed.state.settings.theme = theme;
               localStorage.setItem('arche-storage', JSON.stringify(parsed));
             }
-          } catch (e) {
-            console.warn('Failed to update theme in storage:', e);
-          }
+                } catch {
+                  // Failed to update theme in storage - skip silently
+                }
         }
       },
 

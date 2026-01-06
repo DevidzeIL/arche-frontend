@@ -134,3 +134,4 @@ switch (note.type) {
 
 Полная документация: `docs/PAGE_TEMPLATES_GUIDE.md`
 
+

@@ -379,3 +379,4 @@ function zoomLevelToPxPerYear(...) {
 
 **Enjoy pixel-perfect Timeline!** 🎨✨
 
+

@@ -19,7 +19,7 @@ export function RootLayout() {
   return (
     <div className="flex flex-col h-screen overflow-hidden relative">
       <MuseumNavigation />
-      <main className="flex-1 overflow-hidden relative pt-16">
+      <main className="flex-1 overflow-hidden relative pt-16 w-full">
         <Outlet />
       </main>
     </div>

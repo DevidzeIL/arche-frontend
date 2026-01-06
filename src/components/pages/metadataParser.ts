@@ -41,7 +41,7 @@ export function parseMetadata(note: ArcheNote): PersonMetadata | WorkMetadata | 
         return null;
     }
   } catch (e) {
-    console.warn('Failed to parse metadata for note:', note.id, e);
+    // Failed to parse metadata - skip silently
     return null;
   }
 }

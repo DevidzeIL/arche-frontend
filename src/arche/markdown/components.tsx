@@ -29,11 +29,6 @@ if (Object.keys(imageModules).length === 0) {
   });
 }
 
-console.log('Loaded images:', Object.keys(imageModules).length);
-if (Object.keys(imageModules).length > 0) {
-  console.log('Sample image paths:', Object.keys(imageModules).slice(0, 3));
-  console.log('Sample image URLs:', Object.values(imageModules).slice(0, 3));
-}
 
 // Функция для получения URL изображения
 function getImageUrl(filename: string): string | null {
@@ -74,7 +69,7 @@ function getImageUrl(filename: string): string | null {
     }
   }
   
-  console.warn('Image not found:', normalizedFilename, 'Available:', Object.keys(normalizedModules));
+        // Image not found - skip silently
   return null;
 }
 
@@ -223,9 +218,8 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
                 src={imageSrc}
                 alt={alt || ''}
                 className="max-w-full h-auto rounded-lg my-4 border border-border shadow-sm"
-                onError={(e) => {
-                  console.error('Failed to load image:', imageSrc);
-                  const target = e.target as HTMLImageElement;
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
                   // Показываем placeholder
                   const placeholder = document.createElement('div');

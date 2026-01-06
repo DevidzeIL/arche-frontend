@@ -96,3 +96,4 @@ export interface IndexMetadata {
   groupBy?: 'type' | 'domain' | 'era';
 }
 
+

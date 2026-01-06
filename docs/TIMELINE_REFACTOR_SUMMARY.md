@@ -271,3 +271,4 @@ console.log('[DEBUG] Visible cards:', visibleCards.length, 'Total:', layout.size
 
 **Вопросы?** См. `TIMELINE_REFACTOR.md` или создайте Issue.
 
+

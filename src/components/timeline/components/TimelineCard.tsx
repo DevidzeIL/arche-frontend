@@ -22,7 +22,6 @@ interface TimelineCardV2Props {
   isHovered?: boolean;
   isRelated?: boolean;
   isDimmed: boolean;
-  focusMode?: boolean;
 }
 
 export const TimelineCard = memo(function TimelineCard({
@@ -34,7 +33,6 @@ export const TimelineCard = memo(function TimelineCard({
   isHovered = false,
   isRelated = false,
   isDimmed,
-  focusMode = false,
 }: TimelineCardV2Props) {
   const { timeline } = note;
   
@@ -74,24 +72,25 @@ export const TimelineCard = memo(function TimelineCard({
   }, [note.body]);
   
   // Z-index система (чёткая иерархия)
-  let zIndex = 0; // базовый
-  if (isRelated) zIndex = 10; // связанные
-  if (isHovered) zIndex = 15; // hover выше связанных
-  if (isFocused) zIndex = 20; // focus - наивысший
+  // Базовый z-index должен быть выше трека (трек ~1, карточки ~10+)
+  let zIndex = 10; // базовый - выше трека
+  if (isRelated) zIndex = 15; // связанные
+  if (isHovered) zIndex = 20; // hover выше связанных
+  if (isFocused) zIndex = 25; // focus - наивысший
   
   return (
     <div
-      className="absolute pointer-events-none" // ← WRAPPER НЕ ловит события!
+      className="absolute pointer-events-none"
+      data-card-id={note.id}
       style={{
         left: `${snap(layout.viewX)}px`,
         top: `${snap(layout.viewY)}px`,
         width: `${CARD_WIDTH}px`,
         height: `${CARD_HEIGHT}px`,
-        // Pixel-snapped transform
         transform: snapTransform(-CARD_WIDTH / 2, -CARD_HEIGHT / 2),
         zIndex,
         opacity,
-        transition: 'opacity 200ms ease-out, z-index 0ms', // z-index без transition!
+        transition: 'opacity 200ms ease-out, z-index 0ms',
         willChange: 'opacity',
       }}
     >
@@ -99,21 +98,26 @@ export const TimelineCard = memo(function TimelineCard({
       <div
         className={cn(
           'w-full h-full rounded-lg border bg-card text-card-foreground shadow-sm',
-          'cursor-pointer pointer-events-auto', // ← события ТОЛЬКО здесь
+          'cursor-pointer pointer-events-auto',
           'transition-all duration-200',
-          // States (чёткая приоритетность)
+          // States с чёткой приоритетностью
           isFocused && 'ring-2 ring-primary shadow-2xl border-primary/60',
           !isFocused && isHovered && 'ring-2 ring-primary/60 shadow-lg border-primary/40',
           !isFocused && !isHovered && isRelated && 'ring-1 ring-primary/30 shadow-md border-primary/20',
-          !isFocused && !isHovered && !isRelated && 'border-border/30 hover:border-primary/50'
+          !isFocused && !isHovered && !isRelated && 'border-border/30'
         )}
-        onPointerEnter={() => onHover?.(note.id)} // ← pointer events вместо mouse
-        onPointerLeave={() => onHover?.(null)}
+        onMouseEnter={(e) => {
+          e.stopPropagation();
+          onHover?.(note.id);
+        }}
+        onMouseLeave={(e) => {
+          e.stopPropagation();
+          onHover?.(null);
+        }}
         onClick={(e) => {
-          e.stopPropagation(); // предотвращаем всплытие
+          e.stopPropagation();
           onClick(note.id);
         }}
-        // Accessibility
         role="button"
         tabIndex={0}
         aria-label={`${note.title}, ${formatYear(timeline.startYear)}`}
@@ -124,10 +128,10 @@ export const TimelineCard = memo(function TimelineCard({
           }
         }}
       >
-        <div className="p-4 h-full flex flex-col justify-between">
-          {/* Изображение (если есть) */}
+        <div className="h-full flex flex-col overflow-hidden rounded-lg">
+          {/* Изображение (если есть) - по верхнему краю */}
           {firstImage && !isDimmed && (
-            <div className="mb-2 -mx-4 -mt-4 h-24 overflow-hidden rounded-t-lg bg-muted">
+            <div className="w-full h-24 overflow-hidden bg-muted flex-shrink-0">
               <img
                 src={firstImage}
                 alt={note.title}
@@ -139,6 +143,7 @@ export const TimelineCard = memo(function TimelineCard({
             </div>
           )}
           
+          <div className={cn("p-4 flex-1 flex flex-col justify-between", !firstImage && "h-full")}>
           {/* Заголовок и тип */}
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-serif text-base leading-tight flex-1 line-clamp-2">
@@ -180,6 +185,7 @@ export const TimelineCard = memo(function TimelineCard({
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

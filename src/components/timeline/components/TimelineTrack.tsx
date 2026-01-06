@@ -5,19 +5,22 @@
  */
 
 import { useMemo } from 'react';
-import { TimelineGeometry, generateTicks, hairlineOffset, getVisibleYearRange } from '../core/timelineMath';
-import { Epoch } from '../types';
+import { TimelineGeometry, generateTicks, hairlineOffset, getVisibleYearRange, yearToViewX } from '../core/timelineMath';
+import { Epoch, TimelineNote } from '../types';
 import { cn } from '@/lib/utils';
 import { formatYear } from '../utils';
 import { snap } from '../utils/pixelSnap';
+import { DensityBar } from './DensityBar';
 
 interface TimelineTrackProps {
   geometry: TimelineGeometry;
   epochs: Epoch[];
+  notes: TimelineNote[];
+  onDensityBinClick?: (startYear: number, endYear: number) => void;
   className?: string;
 }
 
-export function TimelineTrack({ geometry, epochs, className }: TimelineTrackProps) {
+export function TimelineTrack({ geometry, epochs, notes, onDensityBinClick, className }: TimelineTrackProps) {
   const dpr = geometry.dpr;
   const hairline = hairlineOffset(dpr);
   
@@ -38,14 +41,14 @@ export function TimelineTrack({ geometry, epochs, className }: TimelineTrackProp
   
   return (
     <div 
-      className={cn('absolute inset-0 pointer-events-none overflow-hidden', className)}
+      className={cn('absolute inset-0 pointer-events-none overflow-hidden w-full', className)}
       style={{ 
         willChange: 'contents' // оптимизация для анимаций
       }}
     >
       {/* Область трека с границами */}
       <div
-        className="absolute left-0 right-0 bg-background/50 backdrop-blur-sm border-t border-b border-border/40"
+        className="absolute left-0 right-0 bg-background/30 border-t border-b border-border/40"
         style={{
           top: `${trackY - 40}px`,
           height: '80px',
@@ -54,7 +57,7 @@ export function TimelineTrack({ geometry, epochs, className }: TimelineTrackProp
       
       {/* Центральная линия времени - HAIRLINE */}
       <div
-        className="absolute left-0 right-0 bg-border"
+        className="absolute left-0 right-0 w-full bg-border"
         style={{
           top: `${trackY + hairline}px`,
           height: '2px',
@@ -64,10 +67,8 @@ export function TimelineTrack({ geometry, epochs, className }: TimelineTrackProp
       
       {/* Полосы эпох */}
       {epochs.map((epoch) => {
-        const startX = geometry.viewportWidth / 2 + 
-          (epoch.startYear - geometry.scrollYear) * geometry.pxPerYear;
-        const endX = geometry.viewportWidth / 2 + 
-          (epoch.endYear - geometry.scrollYear) * geometry.pxPerYear;
+        const startX = yearToViewX(epoch.startYear, geometry);
+        const endX = yearToViewX(epoch.endYear, geometry);
         const width = endX - startX;
         
         // Culling: не рендерим эпохи вне экрана
@@ -145,11 +146,11 @@ export function TimelineTrack({ geometry, epochs, className }: TimelineTrackProp
         );
       })}
       
-      {/* Индикатор текущей позиции - pixel-perfect */}
+      {/* Индикатор текущей позиции - ВСЕГДА ПО ЦЕНТРУ VIEWPORT */}
       <div
         className="absolute top-0 bottom-0 bg-primary/50 pointer-events-none"
         style={{
-          left: `${snap(geometry.viewportWidth / 2)}px`, // ← FIX: snap
+          left: '50%', // ВСЕГДА центр экрана
           width: '2px',
           transform: `translateX(-1px)`,
         }}
@@ -157,13 +158,24 @@ export function TimelineTrack({ geometry, epochs, className }: TimelineTrackProp
         <div
           className="absolute left-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-md text-xs font-mono whitespace-nowrap shadow-lg pointer-events-none"
           style={{
-            top: `${snap(trackY - 36)}px`, // ← FIX: snap
-            transform: 'translate(-50%, 0)', // без -translate-y-full для стабильности
+            top: `${snap(trackY - 36)}px`,
+            transform: 'translate(-50%, 0)',
           }}
         >
           {formatYear(Math.round(geometry.scrollYear))}
         </div>
       </div>
+      
+      {/* Density Bar - показывает где есть контент */}
+      <DensityBar
+        notes={notes}
+        geometry={geometry}
+        onBinClick={onDensityBinClick}
+        className="pointer-events-auto"
+        style={{
+          bottom: `${snap(trackY + 12)}px`, // чуть выше трека
+        }}
+      />
     </div>
   );
 }

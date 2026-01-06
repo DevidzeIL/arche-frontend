@@ -309,6 +309,13 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
         />
       </div>
       
+      {/* UX подсказка */}
+      <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10 pointer-events-none">
+        <div className="bg-background/80 backdrop-blur-sm border border-border/30 rounded-md px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+          <span className="font-medium">Колесико мыши</span> — движение • <span className="font-medium">Ctrl+колесико</span> — масштаб
+        </div>
+      </div>
+      
       {/* Focus mode overlay */}
       {focusMode && (
         <div
@@ -337,7 +344,16 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
         />
         
         {/* LAYER 1: Background + Track (pointer-events: none) */}
-        <TimelineTrack geometry={geometry} epochs={DEFAULT_EPOCHS} />
+        <TimelineTrack
+          geometry={geometry}
+          epochs={DEFAULT_EPOCHS}
+          notes={filteredNotes}
+          onDensityBinClick={(startYear, endYear) => {
+            // Центрируем на середину диапазона
+            const midYear = (startYear + endYear) / 2;
+            scrollController?.setTargetPosition(midYear, true);
+          }}
+        />
         
         {/* LAYER 2: Cards (pointer-events: auto на каждой карточке) */}
         {visibleCards.map((layoutItem) => {
@@ -362,7 +378,6 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
               isHovered={isHovered}
               isRelated={isRelated}
               isDimmed={isDimmed}
-              focusMode={focusMode}
             />
           );
         })}

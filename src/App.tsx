@@ -12,14 +12,9 @@ function App() {
   // Загружаем заметки при старте
   useEffect(() => {
     if (!loaded) {
-      console.log('Loading notes...');
-      loadNotes()
-        .then(() => {
-          console.log('Notes loaded successfully');
-        })
-        .catch((error) => {
-          console.error('Error loading notes:', error);
-        });
+      loadNotes().catch(() => {
+        // Error loading notes - handled by error boundary
+      });
     }
   }, [loaded, loadNotes]);
 

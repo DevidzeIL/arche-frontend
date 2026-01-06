@@ -28,11 +28,7 @@ export interface Epoch {
   color?: string;
 }
 
-export interface TickMark {
-  year: number;
-  label: string;
-  size: 'large' | 'small';
-}
+// TickMark теперь экспортируется из core/timelineMath.ts
 
 export interface FilterState {
   types: string[];

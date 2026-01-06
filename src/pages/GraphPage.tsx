@@ -3,7 +3,7 @@
  * Без Pixi + Matter.js
  */
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useArcheStore } from '@/arche/state/store';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useNavigate } from 'react-router-dom';
@@ -23,8 +23,9 @@ const DEFAULT_SETTINGS: GraphSettings = {
 export function GraphPage() {
   const notes = useArcheStore((state) => state.notes);
   const navigate = useNavigate();
-  const [settings, setSettings] = useState<GraphSettings>(DEFAULT_SETTINGS);
-  const graphRef = useRef<any>();
+  const [settings, setSettings] = useState<GraphSettings>(() => DEFAULT_SETTINGS);
+  const graphRef = useRef<any>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   
   // Фильтрация заметок
   const filteredNotes = useMemo(() => {
@@ -46,6 +47,20 @@ export function GraphPage() {
     return result;
   }, [notes, settings.filters]);
   
+  // Цвета для типов нод
+  const getNodeColor = (type: string): string => {
+    const colors: Record<string, string> = {
+      person: '#3b82f6',    // Синий
+      work: '#8b5cf6',      // Фиолетовый
+      concept: '#10b981',   // Зеленый
+      time: '#f59e0b',      // Оранжевый
+      place: '#ef4444',     // Красный
+      hub: '#9ca3af',       // Серый
+      note: '#6b7280',      // Серый
+    };
+    return colors[type] || '#6b7280';
+  };
+
   // Строим граф из заметок
   const graphData = useMemo(() => {
     const nodes = filteredNotes.map(note => ({
@@ -53,6 +68,7 @@ export function GraphPage() {
       title: note.title,
       type: note.type || 'note',
       domain: note.domain || [],
+      color: getNodeColor(note.type || 'note'),
     }));
     
     const links: Array<{ source: string; target: string }> = [];
@@ -87,12 +103,42 @@ export function GraphPage() {
     return { nodes, links };
   }, [filteredNotes, settings.showOnlyConnected]);
   
-  // Применяем настройки к графу
-  useEffect(() => {
-    if (graphRef.current) {
-      graphRef.current.d3Force('link')?.distance(settings.linkDistance);
-      graphRef.current.d3Force('charge')?.strength(settings.chargeStrength);
+  // Получаем цвет для связи (если hovered, то цвет ноды)
+  const getLinkColor = useCallback((link: any): string => {
+    if (!hoveredNodeId) return 'rgba(255, 255, 255, 0.2)';
+    
+    const hoveredNode = graphData.nodes.find((n: any) => n.id === hoveredNodeId);
+    if (!hoveredNode) return 'rgba(255, 255, 255, 0.2)';
+    
+    // Проверяем, связана ли эта связь с hovered нодой
+    const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+    const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+    
+    if (sourceId === hoveredNodeId || targetId === hoveredNodeId) {
+      return hoveredNode.color || 'rgba(255, 255, 255, 0.2)';
     }
+    
+    return 'rgba(255, 255, 255, 0.1)';
+  }, [hoveredNodeId, graphData]);
+  
+  // Применяем настройки к графу через d3Force API
+  useEffect(() => {
+    if (!graphRef.current) return;
+    
+    // Обновляем расстояние связей
+    const linkForce = graphRef.current.d3Force('link');
+    if (linkForce) {
+      linkForce.distance(settings.linkDistance);
+    }
+    
+    // Обновляем силу отталкивания
+    const chargeForce = graphRef.current.d3Force('charge');
+    if (chargeForce) {
+      chargeForce.strength(settings.chargeStrength);
+    }
+    
+    // Перезапускаем симуляцию для применения изменений
+    graphRef.current.d3ReheatSimulation();
   }, [settings.linkDistance, settings.chargeStrength]);
   
   return (
@@ -107,25 +153,43 @@ export function GraphPage() {
       <ForceGraph2D
         ref={graphRef}
         graphData={graphData}
-        nodeLabel={(node: any) => node.title}
-        nodeColor={(node: any) => {
-          const colors: Record<string, string> = {
-            person: '#3b82f6',
-            work: '#8b5cf6',
-            concept: '#10b981',
-            time: '#f59e0b',
-            place: '#ef4444',
-            note: '#6b7280',
-          };
-          return colors[node.type] || '#6b7280';
+        nodeLabel={(node: any) => {
+          const title = node.title || '';
+          return title.length > 50 ? title.substring(0, 47) + '...' : title;
         }}
-        linkColor={() => 'rgba(255, 255, 255, 0.2)'}
+        nodeColor={(node: any) => node.color || getNodeColor(node.type || 'note')}
+        linkColor={getLinkColor}
+        onNodeHover={(node: any) => {
+          setHoveredNodeId(node ? node.id : null);
+        }}
         onNodeClick={(node: any) => {
           navigate(`/note/${node.id}`);
         }}
-        nodeVal={() => settings.nodeSize}
-        linkDistance={settings.linkDistance}
-        nodeRepulsion={settings.chargeStrength}
+        nodeVal={settings.nodeSize}
+        nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          const label = node.title || '';
+          const truncatedLabel = label.length > 50 ? label.substring(0, 47) + '...' : label;
+          const fontSize = 12 / Math.max(1, globalScale);
+          const nodeSize = settings.nodeSize;
+          
+          // Рисуем круг ноды
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, nodeSize, 0, 2 * Math.PI, false);
+          ctx.fillStyle = node.color || getNodeColor(node.type || 'note');
+          ctx.fill();
+          
+          // Рисуем обводку (опционально, для лучшей видимости)
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          
+          // Рисуем текст под нодой
+          ctx.font = `${fontSize}px Sans-Serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillStyle = 'rgba(200, 200, 200, 0.8)'; // Серовато-белый
+          ctx.fillText(truncatedLabel, node.x, node.y + nodeSize + 4);
+        }}
         cooldownTicks={100}
         onEngineStop={() => {
           // Граф устаканился

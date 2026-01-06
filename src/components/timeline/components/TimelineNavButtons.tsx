@@ -32,7 +32,6 @@ export function TimelineNavButtons({
           disabled={!hasPrevious}
           className={cn(
             'rounded-full w-10 h-10 shadow-lg',
-            hasPrevious && 'hover:bg-accent',
             !hasPrevious && 'opacity-30 cursor-not-allowed'
           )}
           title="К предыдущей записи"
@@ -50,7 +49,6 @@ export function TimelineNavButtons({
           disabled={!hasNext}
           className={cn(
             'rounded-full w-10 h-10 shadow-lg',
-            hasNext && 'hover:bg-accent',
             !hasNext && 'opacity-30 cursor-not-allowed'
           )}
           title="К следующей записи"

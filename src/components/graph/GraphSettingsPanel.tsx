@@ -84,7 +84,10 @@ export function GraphSettingsPanel({
         variant="outline"
         size="icon"
         onClick={() => setIsOpen(true)}
-        className={cn('fixed top-20 right-4 z-40', className)}
+        className={cn(
+          'fixed top-20 right-4 z-40 rounded-full',
+          className
+        )}
       >
         <Filter className="h-4 w-4" />
       </Button>
@@ -106,7 +109,7 @@ export function GraphSettingsPanel({
             setIsOpen(false);
             onClose?.();
           }}
-          className="h-6 w-6"
+          className="h-8 w-8 rounded-full"
         >
           <X className="h-4 w-4" />
         </Button>
@@ -174,10 +177,10 @@ export function GraphSettingsPanel({
                   key={option.value}
                   onClick={() => toggleType(option.value)}
                   className={cn(
-                    'px-2 py-1 text-xs rounded border transition-all',
+                    'px-3 py-1.5 text-xs rounded-md border transition-all duration-200',
                     isActive
                       ? 'bg-accent border-border text-foreground'
-                      : 'bg-background border-border/50 text-muted-foreground hover:border-border'
+                      : 'bg-background border-border/50 text-muted-foreground hover:border-border hover:text-foreground hover:bg-accent/50'
                   )}
                 >
                   {option.label}
@@ -198,10 +201,10 @@ export function GraphSettingsPanel({
                   key={option.value}
                   onClick={() => toggleDomain(option.value)}
                   className={cn(
-                    'px-2 py-1 text-xs rounded border transition-all',
+                    'px-3 py-1.5 text-xs rounded-md border transition-all duration-200',
                     isActive
                       ? 'bg-accent border-border text-foreground'
-                      : 'bg-background border-border/50 text-muted-foreground hover:border-border'
+                      : 'bg-background border-border/50 text-muted-foreground hover:border-border hover:text-foreground hover:bg-accent/50'
                   )}
                 >
                   {option.label}
@@ -220,6 +223,43 @@ export function GraphSettingsPanel({
             checked={settings.showOnlyConnected}
             onCheckedChange={(checked) => updateSetting('showOnlyConnected', checked)}
           />
+        </div>
+
+        <Separator />
+
+        {/* Легенда цветов */}
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Цвета типов</Label>
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#3b82f6]"></div>
+              <span className="text-muted-foreground">Персоны</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#8b5cf6]"></div>
+              <span className="text-muted-foreground">Работы</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#10b981]"></div>
+              <span className="text-muted-foreground">Концепции</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#f59e0b]"></div>
+              <span className="text-muted-foreground">Эпохи</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#ef4444]"></div>
+              <span className="text-muted-foreground">Места</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#9ca3af]"></div>
+              <span className="text-muted-foreground">Хабы</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#6b7280]"></div>
+              <span className="text-muted-foreground">Заметки</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

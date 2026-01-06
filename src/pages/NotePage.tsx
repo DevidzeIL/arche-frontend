@@ -18,7 +18,7 @@ export function NotePage() {
     return (
       <div className="h-full w-full overflow-y-auto">
         <div className="container mx-auto px-8 py-16">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-8">
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-8 rounded-md">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Назад
           </Button>

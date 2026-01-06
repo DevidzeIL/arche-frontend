@@ -236,3 +236,4 @@ function extractYears(note: ArcheNote): number[] {
   return years;
 }
 
+

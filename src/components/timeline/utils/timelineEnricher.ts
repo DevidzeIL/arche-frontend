@@ -172,3 +172,4 @@ export function enrichAllNotes(notes: ArcheNote[]): TimelineNote[] {
     .filter((note): note is TimelineNote => note !== null);
 }
 
+

@@ -118,3 +118,4 @@ strokeThickness: 2, // ❌ TS2353
 - Неиспользуемые импорты в `src/arche/state/store.ts` - не критично
 
 
+

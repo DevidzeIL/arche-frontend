@@ -132,7 +132,7 @@ export function parseNote(
       links,
     };
   } catch (error) {
-    console.error(`Error parsing note ${filePath}:`, error);
+    // Error parsing note - skip silently
     return null;
   }
 }
@@ -168,10 +168,6 @@ export async function loadNotes(): Promise<ArcheNote[]> {
     });
   }
 
-  console.log(`Found ${Object.keys(foundModules).length} markdown files`);
-  if (Object.keys(foundModules).length > 0) {
-    console.log('Sample paths:', Object.keys(foundModules).slice(0, 5));
-  }
   
   const notes: ArcheNote[] = [];
 
@@ -186,15 +182,9 @@ export async function loadNotes(): Promise<ArcheNote[]> {
     const note = parseNote(relativePath, content as string);
     if (note) {
       notes.push(note);
-    } else {
-      console.warn(`Failed to parse note: ${relativePath} (original path: ${path})`);
     }
   }
 
-  console.log(`Loaded ${notes.length} notes from arche-vault`);
-  if (notes.length > 0) {
-    console.log('Sample notes:', notes.slice(0, 3).map(n => ({ title: n.title, folder: n.folder })));
-  }
   return notes;
 }
 

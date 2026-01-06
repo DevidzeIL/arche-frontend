@@ -76,10 +76,10 @@ export function TimelineFilters({
                   key={option.value}
                   onClick={() => toggleType(option.value)}
                   className={cn(
-                    'px-3 py-1 text-xs rounded-full border transition-all',
+                    'px-3 py-1.5 text-xs rounded-md border transition-all duration-200',
                     isActive
                       ? 'bg-accent border-border text-foreground'
-                      : 'bg-background border-border/50 text-muted-foreground hover:border-border hover:text-foreground'
+                      : 'bg-background border-border/50 text-muted-foreground hover:border-border hover:text-foreground hover:bg-accent/50'
                   )}
                 >
                   {option.label}
@@ -98,7 +98,7 @@ export function TimelineFilters({
               size="sm"
               onClick={() => onZoomChange('out')}
               className={cn(
-                'h-8 px-3',
+                'h-8 px-3 rounded-md',
                 zoomLevel === 'out' && 'bg-accent'
               )}
               title="Далёкий: века/эпохи"
@@ -111,16 +111,16 @@ export function TimelineFilters({
               onClick={() => {
                 // Переключение полноэкранного режима
                 if (!document.fullscreenElement) {
-                  document.documentElement.requestFullscreen().catch(err => {
-                    console.warn('Failed to enter fullscreen:', err);
+                  document.documentElement.requestFullscreen().catch(() => {
+                    // Failed to enter fullscreen - skip silently
                   });
                 } else {
-                  document.exitFullscreen().catch(err => {
-                    console.warn('Failed to exit fullscreen:', err);
+                  document.exitFullscreen().catch(() => {
+                    // Failed to exit fullscreen - skip silently
                   });
                 }
               }}
-              className="h-8 px-3"
+              className="h-8 px-3 rounded-md"
               title="Полноэкранный режим"
             >
               <Maximize2 className="h-4 w-4" />
@@ -130,7 +130,7 @@ export function TimelineFilters({
               size="sm"
               onClick={() => onZoomChange('in')}
               className={cn(
-                'h-8 px-3',
+                'h-8 px-3 rounded-md',
                 zoomLevel === 'in' && 'bg-accent'
               )}
               title="Близкий: годы"
@@ -155,10 +155,10 @@ export function TimelineFilters({
                   key={option.value}
                   onClick={() => toggleDomain(option.value)}
                   className={cn(
-                    'px-3 py-1 text-xs rounded-full border transition-all',
+                    'px-3 py-1.5 text-xs rounded-md border transition-all duration-200',
                     isActive
                       ? 'bg-accent border-border text-foreground'
-                      : 'bg-background border-border/50 text-muted-foreground hover:border-border hover:text-foreground'
+                      : 'bg-background border-border/50 text-muted-foreground hover:border-border hover:text-foreground hover:bg-accent/50'
                   )}
                 >
                   {option.label}
@@ -174,7 +174,7 @@ export function TimelineFilters({
             variant="ghost"
             size="sm"
             onClick={clearAllFilters}
-            className="text-xs text-muted-foreground hover:text-foreground"
+            className="text-xs rounded-md hover:bg-accent/80 transition-colors text-muted-foreground hover:text-foreground"
           >
             Сбросить фильтры
           </Button>

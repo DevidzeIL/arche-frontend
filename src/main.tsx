@@ -24,7 +24,7 @@ const initTheme = () => {
       return
     }
   } catch (e) {
-    console.warn('Failed to parse theme from storage:', e)
+    // Failed to parse theme from storage - skip silently
   }
   
   // Fallback: системная тема

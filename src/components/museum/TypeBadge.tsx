@@ -45,3 +45,4 @@ export function TypeBadge({ type, className }: TypeBadgeProps) {
   );
 }
 
+

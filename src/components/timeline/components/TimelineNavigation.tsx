@@ -39,7 +39,7 @@ export function TimelineNavigation({
         size="sm"
         onClick={onPrevious}
         disabled={!hasPrevious}
-        className="h-8 w-8 p-0"
+        className="h-8 w-8 p-0 rounded-md"
         title="Предыдущая карточка (←)"
       >
         <ChevronLeft className="h-4 w-4" />
@@ -54,7 +54,7 @@ export function TimelineNavigation({
         size="sm"
         onClick={onNext}
         disabled={!hasNext}
-        className="h-8 w-8 p-0"
+        className="h-8 w-8 p-0 rounded-md"
         title="Следующая карточка (→)"
       >
         <ChevronRight className="h-4 w-4" />

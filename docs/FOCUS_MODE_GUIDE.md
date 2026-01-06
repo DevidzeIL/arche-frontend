@@ -282,3 +282,4 @@ const relatedNoteIds = useMemo(() => {
 - **TIME_RULER_DESIGN.md** — архитектура и дизайн
 - **PROJECT_SUMMARY.md** — общий обзор проекта
 
+

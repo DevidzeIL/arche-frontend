@@ -327,3 +327,4 @@ const offset = hairline(); // → 0.25 на 2x DPR, 0 на 1x
 
 **Следующий шаг:** Ручное тестирование по чек-листу из `TIMELINE_FIXES_CHECKLIST.md`
 
+

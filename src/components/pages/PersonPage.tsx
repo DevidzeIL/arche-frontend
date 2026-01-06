@@ -67,14 +67,14 @@ export function PersonPage({ note, metadata, relatedNotes }: PersonPageProps) {
     <div className="h-full w-full overflow-y-auto bg-background">
       <div className="container mx-auto px-6 lg:px-12 py-12 max-w-5xl">
         {/* Навигация назад */}
-        <Button
-          variant="ghost"
-          onClick={() => navigate(-1)}
-          className="mb-8 -ml-2"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Назад
-        </Button>
+               <Button
+                 variant="ghost"
+                 onClick={() => navigate(-1)}
+                 className="mb-8 -ml-2 rounded-md"
+               >
+                 <ArrowLeft className="mr-2 h-4 w-4" />
+                 Назад
+               </Button>
         
         {/* Заголовок */}
         <header className="mb-8">
