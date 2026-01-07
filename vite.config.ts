@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import { readdirSync, statSync } from 'fs'
+import { readdirSync, statSync, mkdirSync, copyFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -38,6 +38,39 @@ function archeVaultStaticPlugin() {
           next();
         }
       });
+    },
+    // Копируем файлы из arche-vault в dist при сборке
+    writeBundle() {
+      const sourceDir = path.resolve(__dirname, 'arche-vault', '_imgs');
+      const destDir = path.resolve(__dirname, 'dist', 'arche-vault', '_imgs');
+      
+      if (!existsSync(sourceDir)) {
+        console.warn('[arche-vault-static] Source directory not found:', sourceDir);
+        return;
+      }
+      
+      // Создаем целевую директорию
+      mkdirSync(destDir, { recursive: true });
+      
+      // Копируем все файлы изображений
+      try {
+        const files = readdirSync(sourceDir);
+        let copiedCount = 0;
+        
+        for (const file of files) {
+          const sourcePath = path.join(sourceDir, file);
+          const destPath = path.join(destDir, file);
+          
+          if (statSync(sourcePath).isFile()) {
+            copyFileSync(sourcePath, destPath);
+            copiedCount++;
+          }
+        }
+        
+        console.log(`[arche-vault-static] Copied ${copiedCount} image files to dist`);
+      } catch (err) {
+        console.error('[arche-vault-static] Error copying files:', err);
+      }
     },
   };
 }

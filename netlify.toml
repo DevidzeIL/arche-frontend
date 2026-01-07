@@ -2,6 +2,8 @@
   command = "npm run build"
   publish = "dist"
 
+# Все остальное - на index.html для SPA
+# Netlify автоматически обслуживает статические файлы из dist, если они существуют
 [[redirects]]
   from = "/*"
   to = "/index.html"

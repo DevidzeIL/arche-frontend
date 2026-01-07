@@ -3,7 +3,7 @@
  * КРИТИЧНО: Geometry НЕ содержит scrollYear, используется yearToScreenX для проекции
  */
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useArcheStore } from '@/arche/state/store';
 import { TimelineFilters } from './TimelineFilters';
@@ -147,6 +147,170 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
     e.preventDefault();
     scrollController?.handleWheel(e.deltaY, scrollClampParams);
   }, [scrollController, scrollClampParams]);
+
+  // Touch/Pointer Events для pan на iPad
+  const panStateRef = useRef<{
+    isPanning: boolean;
+    pointerId: number | null;
+    startClientX: number;
+    startClientY: number;
+    startScrollYear: number;
+    lastClientX: number;
+    lastClientY: number;
+    lastTimestamp: number;
+    wasDragging: boolean;
+  }>({
+    isPanning: false,
+    pointerId: null,
+    startClientX: 0,
+    startClientY: 0,
+    startScrollYear: 0,
+    lastClientX: 0,
+    lastClientY: 0,
+    lastTimestamp: 0,
+    wasDragging: false,
+  });
+
+  // Обработчик начала pan
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    // Обрабатываем только touch и pen (можно и мышь при зажатой кнопке)
+    if (e.pointerType === 'touch' || e.pointerType === 'pen' || (e.pointerType === 'mouse' && e.buttons === 1)) {
+      const element = e.currentTarget as HTMLElement;
+      element.setPointerCapture(e.pointerId);
+      
+      panStateRef.current = {
+        isPanning: true,
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startScrollYear: scrollYear,
+        lastClientX: e.clientX,
+        lastClientY: e.clientY,
+        lastTimestamp: performance.now(),
+        wasDragging: false,
+      };
+      
+      scrollController?.handleDragStart(scrollYear);
+    }
+  }, [scrollYear, scrollController]);
+
+  // Обработчик движения при pan
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const panState = panStateRef.current;
+    
+    if (!panState.isPanning || panState.pointerId !== e.pointerId) {
+      return;
+    }
+
+    const now = performance.now();
+    const dx = e.clientX - panState.startClientX;
+    const dy = e.clientY - panState.startClientY;
+    const dxAbs = Math.abs(dx);
+    const dyAbs = Math.abs(dy);
+    
+    // Определяем, является ли жест горизонтальным
+    const isHorizontalPan = dxAbs > dyAbs * 1.2 && dxAbs > 4;
+    
+    // Если жест горизонтальный, предотвращаем дефолтное поведение
+    if (isHorizontalPan && e.pointerType === 'touch') {
+      e.preventDefault();
+    }
+    
+    // Если это горизонтальный pan, обновляем позицию
+    if (isHorizontalPan) {
+      panState.wasDragging = true;
+      
+      // Используем инкрементальные изменения для плавности
+      const deltaX = e.clientX - panState.lastClientX;
+      
+      // Обновляем позицию через scrollController (он применяет clamp внутри)
+      scrollController?.handleDrag(
+        deltaX,
+        geometry.pxPerYear,
+        scrollClampParams
+      );
+      
+      // Обновляем состояние для расчета скорости
+      panState.lastClientX = e.clientX;
+      panState.lastClientY = e.clientY;
+      panState.lastTimestamp = now;
+    }
+  }, [scrollController, geometry.pxPerYear, scrollClampParams]);
+
+  // Обработчик окончания pan
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const panState = panStateRef.current;
+    
+    if (!panState.isPanning || panState.pointerId !== e.pointerId) {
+      return;
+    }
+
+    const element = e.currentTarget as HTMLElement;
+    element.releasePointerCapture(e.pointerId);
+    
+    // Рассчитываем скорость для инерции
+    const now = performance.now();
+    const dt = now - panState.lastTimestamp;
+    const dx = e.clientX - panState.lastClientX;
+    
+    let velocityYearsPerMs = 0;
+    
+    if (dt > 0 && Math.abs(dx) > 0) {
+      // Конвертируем скорость из пикселей/мс в годы/мс
+      const vxPxPerMs = dx / dt;
+      velocityYearsPerMs = -vxPxPerMs / geometry.pxPerYear; // минус: свайп вправо = камера в прошлое
+    }
+    
+    // Завершаем drag с инерцией
+    scrollController?.handleDragEnd(velocityYearsPerMs);
+    
+    // Сбрасываем флаг wasDragging через небольшую задержку, чтобы клики не срабатывали
+    if (panState.wasDragging) {
+      setTimeout(() => {
+        panStateRef.current.wasDragging = false;
+      }, 100);
+    }
+    
+    // Сбрасываем состояние pan
+    panStateRef.current = {
+      isPanning: false,
+      pointerId: null,
+      startClientX: 0,
+      startClientY: 0,
+      startScrollYear: 0,
+      lastClientX: 0,
+      lastClientY: 0,
+      lastTimestamp: 0,
+      wasDragging: panState.wasDragging,
+    };
+  }, [scrollController, geometry.pxPerYear]);
+
+  // Обработчик отмены pan
+  const handlePointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const panState = panStateRef.current;
+    
+    if (!panState.isPanning || panState.pointerId !== e.pointerId) {
+      return;
+    }
+
+    const element = e.currentTarget as HTMLElement;
+    element.releasePointerCapture(e.pointerId);
+    
+    scrollController?.handleDragEnd(0);
+    
+    // Сбрасываем состояние pan
+    panStateRef.current = {
+      isPanning: false,
+      pointerId: null,
+      startClientX: 0,
+      startClientY: 0,
+      startScrollYear: 0,
+      lastClientX: 0,
+      lastClientY: 0,
+      lastTimestamp: 0,
+      wasDragging: false,
+    };
+  }, [scrollController]);
   
   // Синхронизация с URL (debounced)
   const updateURL = useDebouncedCallback((year: number, zoom: ZoomLevel) => {
@@ -184,8 +348,13 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
     }
   }, [scrollYear, scrollClampParams]);
   
-  // Клик по карточке
+  // Клик по карточке (с защитой от случайных срабатываний при drag)
   const handleCardClick = useCallback((noteId: string) => {
+    // Игнорируем клик, если был drag
+    if (panStateRef.current.wasDragging) {
+      return;
+    }
+    
     if (focusMode && focusedNoteId === noteId) {
       setFocusMode(false);
       setFocusedNoteId(null);
@@ -327,7 +496,14 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
         ref={containerRef}
         className={`flex-1 relative w-full ${focusMode ? 'z-20' : 'z-0'}`}
         onWheel={handleWheel}
-        style={{ width: `${geometry.viewportWidth}px` }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        style={{ 
+          width: `${geometry.viewportWidth}px`,
+          touchAction: 'pan-y', // Разрешаем вертикальный скролл страницы, перехватываем горизонтальные жесты
+        }}
       >
         {/* RowsArea - верхняя зона для семантических строк */}
         <div 

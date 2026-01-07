@@ -49,27 +49,57 @@ export class ScrollController {
   
   /**
    * Начало драга
+   * @param initialPosition - начальная позиция в годах (опционально)
    */
-  handleDragStart(): void {
+  handleDragStart(initialPosition?: number): void {
     this.isDragging = true;
     this.velocity = 0;
+    if (initialPosition !== undefined) {
+      this.targetPosition = initialPosition;
+      this.position = initialPosition;
+    }
   }
   
   /**
    * Процесс драга
+   * @param deltaX - изменение в пикселях по X
+   * @param pxPerYear - пикселей на год для конвертации
+   * @param clampParams - параметры для ограничения позиции (опционально)
    */
-  handleDrag(deltaX: number): void {
+  handleDrag(deltaX: number, pxPerYear?: number, clampParams?: ScrollClampParams): void {
     if (!this.isDragging) return;
-    const yearsDelta = deltaX * 0.05;
-    this.targetPosition -= yearsDelta;
+    
+    // Конвертируем пиксели в годы
+    const pxToYearRatio = pxPerYear ? 1 / pxPerYear : 0.05;
+    const yearsDelta = -deltaX * pxToYearRatio; // минус: свайп вправо = камера в прошлое
+    
+    let newTarget = this.targetPosition + yearsDelta;
+    
+    // Применяем clamp если передан
+    if (clampParams) {
+      newTarget = clampScrollYear(newTarget, clampParams);
+    }
+    
+    this.targetPosition = newTarget;
     this.position = this.targetPosition; // Мгновенное обновление при драге
   }
   
   /**
-   * Конец драга
+   * Конец драга с установкой скорости для инерции
+   * @param velocityYearsPerMs - скорость в годах на миллисекунду
    */
-  handleDragEnd(): void {
+  handleDragEnd(velocityYearsPerMs?: number): void {
     this.isDragging = false;
+    if (velocityYearsPerMs !== undefined) {
+      this.velocity = velocityYearsPerMs * 16; // конвертируем в годы на кадр (при 60fps)
+    }
+  }
+  
+  /**
+   * Установить скорость для инерции (в годах на миллисекунду)
+   */
+  setVelocity(velocityYearsPerMs: number): void {
+    this.velocity = velocityYearsPerMs * 16; // конвертируем в годы на кадр
   }
   
   /**

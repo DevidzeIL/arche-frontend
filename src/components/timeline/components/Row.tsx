@@ -78,7 +78,7 @@ export function Row({
       />
       
       {/* Заголовок строки (слева, sticky) */}
-      <div
+      {/* <div
         className={cn(
           "absolute left-0 flex flex-col items-start justify-center px-4 pointer-events-auto cursor-pointer",
           "transition-colors duration-200",
@@ -100,7 +100,7 @@ export function Row({
             🔍 zoom in
           </span>
         )}
-      </div>
+      </div> */}
       
       {/* Контент строки (справа от заголовка) */}
       <div
