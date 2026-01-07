@@ -31,14 +31,14 @@ export function RowsLayer({
   scrollYear,
   geometry,
   zoomLevel,
-  activeRowKey,
+  activeRowKey: _activeRowKey, // Не используется, так как заголовок строки закомментирован
   focusedNoteId,
   hoveredNoteId,
   relatedNoteIds,
   focusMode,
   onCardClick,
   onCardHover,
-  onRowClick,
+  onRowClick: _onRowClick, // Не используется, так как заголовок строки закомментирован
 }: RowsLayerProps) {
   // Группируем заметки по строкам
   const notesByRow = useMemo(() => {
@@ -115,7 +115,6 @@ export function RowsLayer({
             const rowConfig = getRowConfig(rowKey);
             // Используем компактную высоту
             const adjustedConfig = { ...rowConfig, height: rowHeight };
-            const isActive = activeRowKey === rowKey;
             
             return (
               <Row
@@ -126,14 +125,12 @@ export function RowsLayer({
                 geometry={geometry}
                 zoomLevel={zoomLevel}
                 rowTop={top}
-                isActive={isActive}
                 focusedNoteId={focusedNoteId}
                 hoveredNoteId={hoveredNoteId}
                 relatedNoteIds={relatedNoteIds}
                 focusMode={focusMode}
                 onCardClick={onCardClick}
                 onCardHover={onCardHover}
-                onRowClick={() => onRowClick?.(rowKey)}
               />
             );
           })}

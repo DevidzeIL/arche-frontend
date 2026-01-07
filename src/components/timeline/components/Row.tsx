@@ -3,16 +3,13 @@
  * КРИТИЧНО: Показывает счетчики заметок в заголовке (total + inFocus)
  */
 
-import { useMemo } from 'react';
 import { TimelineNote } from '../types';
 import { RowConfig } from '../utils/rowTypes';
 import { RowMarkersLayer } from './RowMarkersLayer';
 import { RowCardsLayer } from './RowCardsLayer';
 import { TimelineGeometry } from '../core/projection';
 import { ZoomLevel } from '../types';
-import { isInFocusWindow } from '../utils/focusWindow';
 import { ROW_HEADER_WIDTH } from '../constants';
-import { cn } from '@/lib/utils';
 
 interface RowProps {
   rowConfig: RowConfig;
@@ -21,14 +18,12 @@ interface RowProps {
   geometry: TimelineGeometry;
   zoomLevel: ZoomLevel;
   rowTop: number;
-  isActive: boolean;
   focusedNoteId: string | null;
   hoveredNoteId: string | null;
   relatedNoteIds: Set<string>;
   focusMode: boolean;
   onCardClick: (noteId: string) => void;
   onCardHover: (noteId: string | null) => void;
-  onRowClick?: () => void;
 }
 
 export function Row({
@@ -38,28 +33,14 @@ export function Row({
   geometry,
   zoomLevel,
   rowTop,
-  isActive,
   focusedNoteId,
   hoveredNoteId,
   relatedNoteIds,
   focusMode,
   onCardClick,
   onCardHover,
-  onRowClick,
 }: RowProps) {
   const rowHeight = rowConfig.height;
-  
-  // Счетчики заметок
-  const { totalCount, inFocusCount } = useMemo(() => {
-    const total = notes.length;
-    const inFocus = notes.filter(note => {
-      const year = note.timeline?.displayYear ?? 0;
-      return isInFocusWindow(year, scrollYear, zoomLevel, geometry);
-    }).length;
-    return { totalCount: total, inFocusCount: inFocus };
-  }, [notes, scrollYear, zoomLevel, geometry]);
-  
-  const hasMoreNotes = inFocusCount < totalCount;
   
   return (
     <div
