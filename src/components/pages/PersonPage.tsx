@@ -5,13 +5,12 @@
 
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, Users, BookOpen, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, BookOpen, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { MarkdownViewer } from '@/arche/markdown/components';
 import { ArcheNote } from '@/arche/types';
 import { PersonMetadata } from './types';
-import { cn } from '@/lib/utils';
 
 interface PersonPageProps {
   note: ArcheNote;

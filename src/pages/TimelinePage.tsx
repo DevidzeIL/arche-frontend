@@ -5,7 +5,7 @@ export function TimelinePage() {
   const navigate = useNavigate();
 
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full max-w-none">
       <TimeRuler onNoteClick={(noteId) => navigate(`/note/${noteId}`)} />
     </div>
   );

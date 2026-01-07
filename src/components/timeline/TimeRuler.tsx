@@ -1,6 +1,6 @@
 /**
- * TimeRuler - Pixel-perfect Timeline с единой геометрией
- * Устраняет все проблемы позиционирования и дрожания
+ * TimeRuler - Apple-quality Semantic Rows + Progressive Disclosure Timeline
+ * КРИТИЧНО: Geometry НЕ содержит scrollYear, используется yearToScreenX для проекции
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
@@ -9,8 +9,12 @@ import { useArcheStore } from '@/arche/state/store';
 import { TimelineFilters } from './TimelineFilters';
 import { TimelineMiniMap } from './TimelineMiniMap';
 import { ConnectionLines } from './ConnectionLines';
-import { TimelineTrack, TimelineCard, TimelineNavigation, TimelineNavButtons } from './components';
-import { useTimelineGeometry, useStableLayout } from './hooks';
+import { TimelineNavButtons } from './components';
+import { RulerLayer } from './components/RulerLayer';
+import { EpochLayer } from './components/EpochLayer';
+import { DensityLayer } from './components/DensityLayer';
+import { RowsLayer } from './components/RowsLayer';
+import { useTimelineGeometry } from './hooks/useTimelineGeometry';
 import { ScrollController } from './ScrollController';
 import { ZoomLevel, FilterState, Epoch } from './types';
 import {
@@ -19,6 +23,11 @@ import {
   filterByLOD,
 } from './utils';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
+import { clampScrollYear, ScrollClampParams, getMinScrollYear, getMaxScrollYear } from './utils/scrollClamp';
+import { yearToScreenX } from './core/projection';
+import { RowKey } from './utils/rowTypes';
+import { findPreviousNoteInRow, findNextNoteInRow } from './utils/rowNavigation';
+import { CAMERA_LIMITS } from '@/arche/graph/cameraLimits';
 
 const DEFAULT_EPOCHS: Epoch[] = [
   { name: 'Античность', startYear: -800, endYear: 500 },
@@ -45,8 +54,8 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
   const initialYear = parseInt(searchParams.get('year') || '1900', 10);
   const initialZoom = (searchParams.get('zoom') || 'mid') as ZoomLevel;
   
-  // State
-  const [currentPosition, setCurrentPosition] = useState(initialYear);
+  // Camera state (scrollYear - отдельно от Geometry)
+  const [scrollYear, setScrollYear] = useState(initialYear);
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>(initialZoom);
   const [filters, setFilters] = useState<FilterState>({
     types: [],
@@ -56,12 +65,12 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
   const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
   const [focusMode, setFocusMode] = useState(false);
+  const [activeRowKey, setActiveRowKey] = useState<RowKey | null>(null);
   
-  // Геометрия (СТАБИЛЬНАЯ через ResizeObserver)
+  // Geometry (НЕ содержит scrollYear!)
   const { geometry, containerRef } = useTimelineGeometry({
     startYear: START_YEAR,
     endYear: END_YEAR,
-    scrollYear: currentPosition,
     zoomLevel,
   });
   
@@ -74,12 +83,10 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
   const filteredNotes = useMemo(() => {
     let result = timelineNotes;
     
-    // Фильтр по типам
     if (filters.types.length > 0) {
       result = result.filter(note => filters.types.includes(note.type || ''));
     }
     
-    // Фильтр по доменам
     if (filters.domains.length > 0) {
       result = result.filter(note => {
         if (!note.domain || note.domain.length === 0) return false;
@@ -87,36 +94,51 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
       });
     }
     
-    // LOD фильтрация
     result = filterByLOD(result, zoomLevel);
     
     return result;
   }, [timelineNotes, filters, zoomLevel]);
   
-  // Ограничения скролла по годам записей
+  // Ограничения скролла по годам записей (используются только для подсказок, миникарты и автофокуса, не для clamp)
+  // КРИТИЧНО: clamp теперь использует hard limits из CAMERA_LIMITS, а не эти значения
   const minYear = useMemo(() => {
     if (filteredNotes.length === 0) return START_YEAR;
     return Math.min(...filteredNotes.map(n => n.timeline.displayYear));
   }, [filteredNotes]);
-  
+
   const maxYear = useMemo(() => {
     if (filteredNotes.length === 0) return END_YEAR;
     return Math.max(...filteredNotes.map(n => n.timeline.displayYear));
   }, [filteredNotes]);
-  
-  // Стабильный layout (НЕ пересчитывается при скролле!)
-  const { visibleCards } = useStableLayout(filteredNotes, geometry);
-  
+
   // Scroll controller (snap)
   const [scrollController, setScrollController] = useState<ScrollController | null>(null);
-  
+
   const snapPoints = useMemo(() => {
     return generateSnapPoints(filteredNotes);
   }, [filteredNotes]);
+
+  // Параметры для правильного clamp scrollYear (center-based камера)
+  // КРИТИЧНО: Теперь использует hard limits вместо minYear/maxYear из данных
+  // minYear/maxYear используются только для подсказок и автофокуса, но не для ограничения камеры
+  const scrollClampParams = useMemo<ScrollClampParams>(() => {
+    return {
+      viewportWidth: geometry.viewportWidth,
+      pxPerYear: geometry.pxPerYear,
+      // minYear/maxYear оставлены для обратной совместимости, но не используются в clamp
+      minYear: START_YEAR,
+      maxYear: END_YEAR,
+    };
+  }, [geometry.viewportWidth, geometry.pxPerYear]);
   
   useEffect(() => {
     const controller = new ScrollController(
-      setCurrentPosition,
+      (newYear: number) => {
+        // Ограничиваем scrollYear правильными границами для center-based камеры
+        // Теперь использует hard limits с overscroll
+        const constrainedYear = clampScrollYear(newYear, scrollClampParams);
+        setScrollYear(constrainedYear);
+      },
       { enabled: true, threshold: 10, strength: 0.7 },
       snapPoints
     );
@@ -126,13 +148,13 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
     return () => {
       controller.destroy();
     };
-  }, [snapPoints]);
+  }, [snapPoints, scrollClampParams]);
   
   // Обработка скролла колёсиком
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    scrollController?.handleWheel(e.deltaY, minYear, maxYear);
-  }, [scrollController, minYear, maxYear]);
+    scrollController?.handleWheel(e.deltaY, scrollClampParams);
+  }, [scrollController, scrollClampParams]);
   
   // Синхронизация с URL (debounced)
   const updateURL = useDebouncedCallback((year: number, zoom: ZoomLevel) => {
@@ -141,30 +163,55 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
       zoom,
     });
   }, 500);
-  
+
   useEffect(() => {
-    updateURL(currentPosition, zoomLevel);
-  }, [currentPosition, zoomLevel, updateURL]);
+    updateURL(scrollYear, zoomLevel);
+  }, [scrollYear, zoomLevel, updateURL]);
+
+  // Dev-log для отладки camera limits (только в dev режиме)
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      const minAllowed = getMinScrollYear(scrollClampParams);
+      const maxAllowed = getMaxScrollYear(scrollClampParams);
+      const isNearMin = Math.abs(scrollYear - minAllowed) < 10;
+      const isNearMax = Math.abs(scrollYear - maxAllowed) < 10;
+      
+      if (isNearMin || isNearMax) {
+        console.log('[Camera Debug]', {
+          scrollYear: Math.round(scrollYear),
+          minAllowed: Math.round(minAllowed),
+          maxAllowed: Math.round(maxAllowed),
+          hardLimits: {
+            min: CAMERA_LIMITS.minYearHard,
+            max: CAMERA_LIMITS.maxYearHard,
+          },
+          overscroll: CAMERA_LIMITS.overscrollYears,
+          nearEdge: isNearMin ? 'min' : isNearMax ? 'max' : null,
+        });
+      }
+    }
+  }, [scrollYear, scrollClampParams]);
   
   // Клик по карточке
   const handleCardClick = useCallback((noteId: string) => {
     if (focusMode && focusedNoteId === noteId) {
-      // Выход из focus mode
       setFocusMode(false);
       setFocusedNoteId(null);
       onNoteClick?.(noteId);
     } else {
-      // Вход в focus mode
       setFocusedNoteId(noteId);
       setFocusMode(true);
       
-      // Центрируем на карточке
       const note = filteredNotes.find(n => n.id === noteId);
       if (note) {
-        scrollController?.setTargetPosition(note.timeline.displayYear, false);
+        // Ограничиваем позицию правильными границами для center-based камеры
+        // Теперь использует hard limits с overscroll
+        const targetYear = note.timeline.displayYear;
+        const constrainedYear = clampScrollYear(targetYear, scrollClampParams);
+        scrollController?.setTargetPosition(constrainedYear, false);
       }
     }
-  }, [focusMode, focusedNoteId, filteredNotes, onNoteClick, scrollController]);
+  }, [focusMode, focusedNoteId, filteredNotes, onNoteClick, scrollController, scrollClampParams]);
   
   // Hover карточки
   const handleCardHover = useCallback((noteId: string | null) => {
@@ -189,7 +236,6 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
     
     const related = new Set<string>();
     
-    // Ищем заметки, на которые ссылается targetNote
     targetNote.links?.forEach(linkTitle => {
       const linkedNote = timelineNotes.find(n => n.title === linkTitle);
       if (linkedNote && linkedNote.id !== targetId) {
@@ -197,7 +243,6 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
       }
     });
     
-    // Ищем заметки, которые ссылаются на targetNote
     timelineNotes.forEach(note => {
       if (note.id !== targetId && note.links?.includes(targetNote.title)) {
         related.add(note.id);
@@ -207,73 +252,45 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
     return related;
   }, [focusedNoteId, hoveredNoteId, timelineNotes]);
   
-  // Навигация по ближайшим карточкам (все записи, не только видимые)
-  const allSortedNotes = useMemo(() => {
+  // Навигация с учетом активной строки
+  const sortedNotes = useMemo(() => {
     return [...filteredNotes].sort((a, b) => a.timeline.displayYear - b.timeline.displayYear);
   }, [filteredNotes]);
   
-  // Находим ближайшие записи к текущей позиции
-  const findNearestNotes = useCallback(() => {
-    const currentYear = currentPosition;
-    
-    // Находим ближайшую запись слева (раньше по времени)
-    let previousNote = null;
-    for (let i = allSortedNotes.length - 1; i >= 0; i--) {
-      if (allSortedNotes[i].timeline.displayYear < currentYear) {
-        previousNote = allSortedNotes[i];
-        break;
-      }
-    }
-    
-    // Находим ближайшую запись справа (позже по времени)
-    let nextNote = null;
-    for (let i = 0; i < allSortedNotes.length; i++) {
-      if (allSortedNotes[i].timeline.displayYear > currentYear) {
-        nextNote = allSortedNotes[i];
-        break;
-      }
-    }
-    
-    return { previousNote, nextNote };
-  }, [currentPosition, allSortedNotes]);
+  const previousNote = useMemo(() => 
+    findPreviousNoteInRow(sortedNotes, scrollYear, activeRowKey),
+    [sortedNotes, scrollYear, activeRowKey]
+  );
   
-  const { previousNote, nextNote } = useMemo(() => findNearestNotes(), [findNearestNotes]);
+  const nextNote = useMemo(() => 
+    findNextNoteInRow(sortedNotes, scrollYear, activeRowKey),
+    [sortedNotes, scrollYear, activeRowKey]
+  );
   
   const navigateToPrevious = useCallback(() => {
     if (previousNote) {
-      scrollController?.setTargetPosition(previousNote.timeline.displayYear, false);
+      const targetYear = previousNote.timeline.displayYear;
+      const constrainedYear = clampScrollYear(targetYear, scrollClampParams);
+      scrollController?.setTargetPosition(constrainedYear, false);
     }
-  }, [previousNote, scrollController]);
-  
+  }, [previousNote, scrollController, scrollClampParams]);
+
   const navigateToNext = useCallback(() => {
     if (nextNote) {
-      scrollController?.setTargetPosition(nextNote.timeline.displayYear, false);
+      const targetYear = nextNote.timeline.displayYear;
+      const constrainedYear = clampScrollYear(targetYear, scrollClampParams);
+      scrollController?.setTargetPosition(constrainedYear, false);
     }
-  }, [nextNote, scrollController]);
+  }, [nextNote, scrollController, scrollClampParams]);
   
-  // Для focus mode навигация
-  const sortedVisibleCards = useMemo(() => {
-    return [...visibleCards].sort((a, b) => a.year - b.year);
-  }, [visibleCards]);
-  
-  const currentCardIndex = useMemo(() => {
-    if (!focusedNoteId) return -1;
-    return sortedVisibleCards.findIndex(card => card.id === focusedNoteId);
-  }, [focusedNoteId, sortedVisibleCards]);
-  
-  const navigateToPreviousInFocus = useCallback(() => {
-    if (currentCardIndex > 0) {
-      const prevCard = sortedVisibleCards[currentCardIndex - 1];
-      handleCardClick(prevCard.id);
+  // Обработчик клика по строке
+  const handleRowClick = useCallback((rowKey: RowKey) => {
+    if (activeRowKey === rowKey) {
+      setActiveRowKey(null); // Снимаем выделение
+    } else {
+      setActiveRowKey(rowKey);
     }
-  }, [currentCardIndex, sortedVisibleCards, handleCardClick]);
-  
-  const navigateToNextInFocus = useCallback(() => {
-    if (currentCardIndex < sortedVisibleCards.length - 1) {
-      const nextCard = sortedVisibleCards[currentCardIndex + 1];
-      handleCardClick(nextCard.id);
-    }
-  }, [currentCardIndex, sortedVisibleCards, handleCardClick]);
+  }, [activeRowKey]);
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -281,25 +298,15 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
       if (e.key === 'Escape' && focusMode) {
         exitFocusMode();
       }
-      
-      if (focusMode) {
-        if (e.key === 'ArrowLeft') {
-          e.preventDefault();
-          navigateToPreviousInFocus();
-        } else if (e.key === 'ArrowRight') {
-          e.preventDefault();
-          navigateToNextInFocus();
-        }
-      }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [focusMode, exitFocusMode, navigateToPreviousInFocus, navigateToNextInFocus]);
+  }, [focusMode, exitFocusMode]);
   
   return (
-    <div className="flex flex-col h-full w-full bg-background relative">
-      {/* Фильтры - фиксированные под навигацией */}
+    <div className="flex flex-col h-full w-full max-w-none bg-background relative" style={{ width: '100vw' }}>
+      {/* Фильтры */}
       <div className="sticky z-30 bg-background/95 backdrop-blur-sm border-b border-border/30">
         <TimelineFilters
           filters={filters}
@@ -307,13 +314,6 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
           zoomLevel={zoomLevel}
           onZoomChange={setZoomLevel}
         />
-      </div>
-      
-      {/* UX подсказка */}
-      <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10 pointer-events-none">
-        <div className="bg-background/80 backdrop-blur-sm border border-border/30 rounded-md px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
-          <span className="font-medium">Колесико мыши</span> — движение • <span className="font-medium">Ctrl+колесико</span> — масштаб
-        </div>
       </div>
       
       {/* Focus mode overlay */}
@@ -329,98 +329,97 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
         </div>
       )}
       
-      {/* Основная область - РАЗДЕЛЕНА НА СЛОИ */}
+      {/* Основная область - СЛОИ */}
+      {/* КРИТИЧНО: Разделение на RowsArea (верх) и TrackArea (низ) */}
       <div
         ref={containerRef}
-        className={`flex-1 relative overflow-hidden ${focusMode ? 'z-20' : 'z-0'}`}
+        className={`flex-1 relative w-full ${focusMode ? 'z-20' : 'z-0'}`}
         onWheel={handleWheel}
+        style={{ width: `${geometry.viewportWidth}px` }}
       >
-        {/* Кнопки навигации к ближайшим записям */}
+        {/* RowsArea - верхняя зона для семантических строк */}
+        <div 
+          className="absolute left-0 right-0 overflow-visible"
+          style={{
+            top: 0,
+            height: `${geometry.cardsAreaHeight}px`,
+          }}
+        >
+          {/* LAYER 0: Epochs (фон за строками) */}
+          <EpochLayer epochs={DEFAULT_EPOCHS} scrollYear={scrollYear} geometry={geometry} />
+          
+          {/* LAYER 1: Semantic Rows (маркеры + карточки) */}
+          <RowsLayer
+            notes={filteredNotes}
+            scrollYear={scrollYear}
+            geometry={geometry}
+            zoomLevel={zoomLevel}
+            activeRowKey={activeRowKey}
+            focusedNoteId={focusedNoteId}
+            hoveredNoteId={hoveredNoteId}
+            relatedNoteIds={relatedNoteIds}
+            focusMode={focusMode}
+            onCardClick={handleCardClick}
+            onCardHover={handleCardHover}
+            onRowClick={handleRowClick}
+          />
+          
+          {/* LAYER 2: Connection lines (в focus mode) */}
+          {focusMode && focusedNoteId && (
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
+              <ConnectionLines
+                focusedNote={filteredNotes.find(n => n.id === focusedNoteId)!}
+                relatedNotes={filteredNotes.filter(n => 
+                  relatedNoteIds.has(n.id) && n.id !== focusedNoteId
+                )}
+                yearToPixel={(year) => yearToScreenX(year, scrollYear, geometry)}
+                containerWidth={geometry.viewportWidth}
+              />
+            </div>
+          )}
+        </div>
+        
+        {/* TrackArea - нижняя зона для линейки/трека */}
+        <div 
+          className="absolute left-0 right-0 overflow-hidden"
+          style={{
+            top: `${geometry.cardsAreaHeight}px`,
+            height: `${geometry.trackAreaHeight}px`,
+          }}
+        >
+          {/* LAYER 0: Ruler (полноэкранная линейка) */}
+          <RulerLayer scrollYear={scrollYear} geometry={geometry} />
+          
+          {/* LAYER 1: Global density markers (под линейкой) */}
+          <DensityLayer notes={filteredNotes} scrollYear={scrollYear} geometry={geometry} />
+        </div>
+        
+        {/* LAYER 3: Navigation buttons (поверх всего) */}
         <TimelineNavButtons
           onPrevious={navigateToPrevious}
           onNext={navigateToNext}
           hasPrevious={previousNote !== null}
           hasNext={nextNote !== null}
         />
-        
-        {/* LAYER 1: Background + Track (pointer-events: none) */}
-        <TimelineTrack
-          geometry={geometry}
-          epochs={DEFAULT_EPOCHS}
-          notes={filteredNotes}
-          onDensityBinClick={(startYear, endYear) => {
-            // Центрируем на середину диапазона
-            const midYear = (startYear + endYear) / 2;
-            scrollController?.setTargetPosition(midYear, true);
-          }}
-        />
-        
-        {/* LAYER 2: Cards (pointer-events: auto на каждой карточке) */}
-        {visibleCards.map((layoutItem) => {
-          const note = filteredNotes.find(n => n.id === layoutItem.id);
-          if (!note) return null;
-          
-          const isFocused = note.id === focusedNoteId;
-          const isHovered = note.id === hoveredNoteId;
-          const isRelated = relatedNoteIds.has(note.id);
-          
-          // ИСПРАВЛЕНО: затемняем только если есть focus/hover и карточка НЕ является ни focused, ни hovered, ни related
-          const isDimmed = (focusMode || hoveredNoteId !== null) && !isFocused && !isHovered && !isRelated;
-          
-          return (
-            <TimelineCard
-              key={note.id}
-              note={note}
-              layout={layoutItem}
-              onClick={handleCardClick}
-              onHover={handleCardHover}
-              isFocused={isFocused}
-              isHovered={isHovered}
-              isRelated={isRelated}
-              isDimmed={isDimmed}
-            />
-          );
-        })}
-        
-        {/* LAYER 0: Connection lines (под карточками, pointer-events: none) */}
-        {focusMode && focusedNoteId && (
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
-            <ConnectionLines
-              focusedNote={filteredNotes.find(n => n.id === focusedNoteId)!}
-              relatedNotes={filteredNotes.filter(n => 
-                relatedNoteIds.has(n.id) && n.id !== focusedNoteId
-              )}
-              yearToPixel={(year) => {
-                const worldX = (year - START_YEAR) * geometry.pxPerYear;
-                const scrollOffset = (geometry.scrollYear - START_YEAR) * geometry.pxPerYear;
-                return worldX - scrollOffset;
-              }}
-              containerWidth={geometry.viewportWidth}
-            />
-          </div>
-        )}
       </div>
       
-      {/* Навигация по карточкам (в focus mode) */}
-      {focusMode && currentCardIndex >= 0 && (
-        <TimelineNavigation
-          onPrevious={navigateToPreviousInFocus}
-          onNext={navigateToNextInFocus}
-          hasPrevious={currentCardIndex > 0}
-          hasNext={currentCardIndex < sortedVisibleCards.length - 1}
-          currentIndex={currentCardIndex}
-          totalCount={sortedVisibleCards.length}
-        />
-      )}
-      
-      {/* Мини-карта */}
+      {/* Мини-карта с индикаторами плотности */}
       <TimelineMiniMap
         startYear={START_YEAR}
         endYear={END_YEAR}
-        currentPosition={currentPosition}
+        currentPosition={scrollYear}
         visibleRangeWidth={geometry.viewportWidth / geometry.pxPerYear}
         epochs={DEFAULT_EPOCHS}
-        onPositionChange={(year) => scrollController?.setTargetPosition(year, false)}
+        notes={filteredNotes}
+        onPositionChange={(year) => {
+          const constrainedYear = clampScrollYear(year, scrollClampParams);
+          scrollController?.setTargetPosition(constrainedYear, false);
+        }}
+        onBinClick={(startYear, endYear) => {
+          const midYear = (startYear + endYear) / 2;
+          const constrainedYear = clampScrollYear(midYear, scrollClampParams);
+          scrollController?.setTargetPosition(constrainedYear, true);
+        }}
       />
     </div>
   );

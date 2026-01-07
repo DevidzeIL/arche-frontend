@@ -6,21 +6,17 @@
 
 import { useMemo } from 'react';
 import { TimelineGeometry, generateTicks, hairlineOffset, getVisibleYearRange, yearToViewX } from '../core/timelineMath';
-import { Epoch, TimelineNote } from '../types';
+import { Epoch } from '../types';
 import { cn } from '@/lib/utils';
-import { formatYear } from '../utils';
 import { snap } from '../utils/pixelSnap';
-import { DensityBar } from './DensityBar';
 
 interface TimelineTrackProps {
   geometry: TimelineGeometry;
   epochs: Epoch[];
-  notes: TimelineNote[];
-  onDensityBinClick?: (startYear: number, endYear: number) => void;
   className?: string;
 }
 
-export function TimelineTrack({ geometry, epochs, notes, onDensityBinClick, className }: TimelineTrackProps) {
+export function TimelineTrack({ geometry, epochs, className }: TimelineTrackProps) {
   const dpr = geometry.dpr;
   const hairline = hairlineOffset(dpr);
   
@@ -41,7 +37,7 @@ export function TimelineTrack({ geometry, epochs, notes, onDensityBinClick, clas
   
   return (
     <div 
-      className={cn('absolute inset-0 pointer-events-none overflow-hidden w-full', className)}
+      className={cn('absolute left-0 right-0 top-0 bottom-0 pointer-events-none overflow-hidden w-full', className)}
       style={{ 
         willChange: 'contents' // оптимизация для анимаций
       }}
@@ -162,20 +158,10 @@ export function TimelineTrack({ geometry, epochs, notes, onDensityBinClick, clas
             transform: 'translate(-50%, 0)',
           }}
         >
-          {formatYear(Math.round(geometry.scrollYear))}
+          {/* scrollYear передается отдельно */}
         </div>
       </div>
       
-      {/* Density Bar - показывает где есть контент */}
-      <DensityBar
-        notes={notes}
-        geometry={geometry}
-        onBinClick={onDensityBinClick}
-        className="pointer-events-auto"
-        style={{
-          bottom: `${snap(trackY + 12)}px`, // чуть выше трека
-        }}
-      />
     </div>
   );
 }

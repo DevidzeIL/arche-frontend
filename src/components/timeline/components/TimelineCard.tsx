@@ -11,7 +11,7 @@ import { TimelineNote } from '../types';
 import { TypeBadge } from '@/components/museum';
 import { cn } from '@/lib/utils';
 import { formatYear } from '../utils';
-import { snap, snapTransform } from '../utils/pixelSnap';
+import { CARD_WIDTH, CARD_HEIGHT } from '../constants';
 
 interface TimelineCardV2Props {
   note: TimelineNote;
@@ -26,7 +26,7 @@ interface TimelineCardV2Props {
 
 export const TimelineCard = memo(function TimelineCard({
   note,
-  layout,
+  layout: _layout, // layout не используется для позиционирования, но нужен для типов
   onClick,
   onHover,
   isFocused,
@@ -35,10 +35,6 @@ export const TimelineCard = memo(function TimelineCard({
   isDimmed,
 }: TimelineCardV2Props) {
   const { timeline } = note;
-  
-  // Фиксированные размеры (pixel-perfect)
-  const CARD_WIDTH = 320;
-  const CARD_HEIGHT = 160;
   
   // Вычисляем opacity без blur
   const opacity = isDimmed ? 0.3 : 1.0;
@@ -78,16 +74,16 @@ export const TimelineCard = memo(function TimelineCard({
   if (isHovered) zIndex = 20; // hover выше связанных
   if (isFocused) zIndex = 25; // focus - наивысший
   
+  // КРИТИЧНО: TimelineCard НЕ делает absolute-позиционирование
+  // Позиционирование задается в RowCardsLayer через wrapper div
+  // Здесь только размеры и стили карточки (без left/top/transform)
   return (
     <div
-      className="absolute pointer-events-none"
+      className="pointer-events-none w-full h-full"
       data-card-id={note.id}
       style={{
-        left: `${snap(layout.viewX)}px`,
-        top: `${snap(layout.viewY)}px`,
         width: `${CARD_WIDTH}px`,
         height: `${CARD_HEIGHT}px`,
-        transform: snapTransform(-CARD_WIDTH / 2, -CARD_HEIGHT / 2),
         zIndex,
         opacity,
         transition: 'opacity 200ms ease-out, z-index 0ms',

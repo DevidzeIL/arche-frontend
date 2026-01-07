@@ -10,7 +10,6 @@ import {
   computeStableLayout,
   filterVisibleCards,
   updateLayoutCoordinates,
-  CardLayoutItem,
 } from '../core/timelineLayout';
 
 export function useStableLayout(

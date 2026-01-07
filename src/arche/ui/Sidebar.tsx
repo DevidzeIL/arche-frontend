@@ -10,12 +10,10 @@ import {
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarRail,
 } from '@/components/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronRight, FileText, Folder } from 'lucide-react';
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
 
 const FOLDER_GROUPS = [
   { id: '00_HUB', label: 'Hub', icon: Folder },

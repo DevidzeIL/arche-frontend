@@ -8,6 +8,8 @@ import { useArcheStore } from '@/arche/state/store';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useNavigate } from 'react-router-dom';
 import { GraphSettingsPanel, GraphSettings } from '@/components/graph/GraphSettingsPanel';
+// import { clampCameraPan, ClampCameraPanOptions } from '@/arche/graph/clampCameraPan';
+// TODO: Добавить ограничения pan для ForceGraph2D когда будет year-based режим
 
 const DEFAULT_SETTINGS: GraphSettings = {
   nodeSize: 8,
@@ -26,6 +28,8 @@ export function GraphPage() {
   const [settings, setSettings] = useState<GraphSettings>(() => DEFAULT_SETTINGS);
   const graphRef = useRef<any>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  // const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  // TODO: Использовать для ограничений pan когда будет year-based режим
   
   // Фильтрация заметок
   const filteredNotes = useMemo(() => {
@@ -121,6 +125,25 @@ export function GraphPage() {
     return 'rgba(255, 255, 255, 0.1)';
   }, [hoveredNodeId, graphData]);
   
+  // TODO: Отслеживать размер viewport для ограничений pan когда будет year-based режим
+  // useEffect(() => {
+  //   const updateSize = () => {
+  //     if (graphRef.current) {
+  //       const container = graphRef.current.getGraphElem();
+  //       if (container) {
+  //         setViewportSize({
+  //           width: container.offsetWidth || window.innerWidth,
+  //           height: container.offsetHeight || window.innerHeight,
+  //         });
+  //       }
+  //     }
+  //   };
+  //   
+  //   updateSize();
+  //   window.addEventListener('resize', updateSize);
+  //   return () => window.removeEventListener('resize', updateSize);
+  // }, []);
+
   // Применяем настройки к графу через d3Force API
   useEffect(() => {
     if (!graphRef.current) return;
@@ -140,6 +163,18 @@ export function GraphPage() {
     // Перезапускаем симуляцию для применения изменений
     graphRef.current.d3ReheatSimulation();
   }, [settings.linkDistance, settings.chargeStrength]);
+
+  // TODO: Обработчик zoom/pan для ограничения камеры когда будет year-based режим
+  // const handleZoom = useCallback((transform: any) => {
+  //   if (!graphRef.current || !transform) return;
+  //   
+  //   // Получаем текущий zoom
+  //   const zoom = transform.k || 1;
+  //   
+  //   // Для force-based графа ограничиваем pan только если есть year-based проекция
+  //   // Пока что просто позволяем свободный pan, но можно добавить ограничения позже
+  //   // если будет year-based режим
+  // }, []);
   
   return (
     <div className="h-full w-full bg-background relative">
@@ -194,6 +229,7 @@ export function GraphPage() {
         onEngineStop={() => {
           // Граф устаканился
         }}
+        // onZoom={handleZoom} // TODO: Включить когда будет year-based режим
       />
     </div>
   );

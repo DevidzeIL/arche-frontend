@@ -10,7 +10,6 @@ import { MuseumCard, TypeBadge } from '@/components/museum';
 import { MarkdownViewer } from '@/arche/markdown/components';
 import { ArcheNote } from '@/arche/types';
 import { TimeMetadata } from './types';
-import { cn } from '@/lib/utils';
 
 interface TimePageProps {
   note: ArcheNote;

@@ -1,5 +1,6 @@
 import { SnapConfig, SnapPoint } from './types';
 import { calculateSnap } from './utils';
+import { clampScrollYear, ScrollClampParams } from './utils/scrollClamp';
 
 /**
  * Контроллер скролла с инерцией и snap
@@ -30,18 +31,16 @@ export class ScrollController {
   
   /**
    * Обработка скролла колёсиком мыши
+   * Использует правильный clamp для center-based камеры
    */
-  handleWheel(deltaY: number, minYear?: number, maxYear?: number): void {
+  handleWheel(deltaY: number, clampParams?: ScrollClampParams): void {
     // Конвертируем delta в изменение позиции (года)
     const yearsDelta = deltaY * 0.1; // настройка чувствительности
     let newTarget = this.targetPosition + yearsDelta;
     
-    // Ограничиваем скролл пределами записей
-    if (minYear !== undefined && newTarget < minYear) {
-      newTarget = minYear;
-    }
-    if (maxYear !== undefined && newTarget > maxYear) {
-      newTarget = maxYear;
+    // Ограничиваем скролл правильными границами для center-based камеры
+    if (clampParams) {
+      newTarget = clampScrollYear(newTarget, clampParams);
     }
     
     this.targetPosition = newTarget;
@@ -101,7 +100,6 @@ export class ScrollController {
         this.lastTimestamp = timestamp;
       }
       
-      const deltaTime = timestamp - this.lastTimestamp;
       this.lastTimestamp = timestamp;
       
       if (!this.isDragging) {

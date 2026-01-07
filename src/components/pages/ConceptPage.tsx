@@ -4,13 +4,12 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, HelpCircle, MessageSquare, Users, BookOpen, Clock } from 'lucide-react';
+import { ArrowLeft, HelpCircle, MessageSquare, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { MarkdownViewer } from '@/arche/markdown/components';
 import { ArcheNote } from '@/arche/types';
 import { ConceptMetadata } from './types';
-import { cn } from '@/lib/utils';
 
 interface ConceptPageProps {
   note: ArcheNote;

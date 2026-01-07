@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ArcheNote, Tab, AppSettings } from '../types';
-import { loadNotes, extractWikilinks, normalizeWikilinkTarget, EXCLUDED_FOLDERS } from '../parser';
+import { loadNotes } from '../parser';
 
 // Нормализация title для строгого матчинга
 export function normalizeTitle(title: string): string {

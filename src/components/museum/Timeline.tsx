@@ -20,7 +20,6 @@ interface TimelineProps {
 export function Timeline({ onNoteClick, className }: TimelineProps) {
   const notes = useArcheStore((state) => state.notes);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scrollPosition, setScrollPosition] = useState(0);
   const [visibleRange, setVisibleRange] = useState<{ start: number; end: number }>({
     start: -500,
     end: 2025,
@@ -67,8 +66,6 @@ export function Timeline({ onNoteClick, className }: TimelineProps) {
       const scrollTop = container.scrollTop;
       const containerHeight = container.clientHeight;
       const scrollHeight = container.scrollHeight;
-
-      setScrollPosition(scrollTop);
 
       // Вычисляем видимый диапазон лет
       const totalYears = 2025 - (-500);
@@ -137,7 +134,7 @@ export function Timeline({ onNoteClick, className }: TimelineProps) {
       >
         <div className="relative min-h-full py-12">
           {/* Эпохи */}
-          {eras.map((era, eraIndex) => {
+          {eras.map((era) => {
             const eraStartPos = getYearPosition(era.startYear);
             const eraEndPos = getYearPosition(era.endYear);
             const eraHeight = eraEndPos - eraStartPos;
