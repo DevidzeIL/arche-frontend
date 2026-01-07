@@ -10,11 +10,25 @@ window.Buffer = Buffer
 // @ts-ignore
 globalThis.Buffer = Buffer
 
-// Инициализация темы при загрузке
+// Инициализация темы при загрузке из zustand persist
 const initTheme = () => {
-  const stored = localStorage.getItem('theme')
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  const theme = stored || (prefersDark ? 'dark' : 'light')
+  try {
+    // Пытаемся получить тему из zustand persist storage
+    const stored = localStorage.getItem('arche-storage')
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      // Zustand persist сохраняет в формате { state: { settings: { theme: ... } } }
+      const theme = parsed?.state?.settings?.theme || parsed?.settings?.theme || 'dark'
+      document.documentElement.classList.remove('light', 'dark')
+      document.documentElement.classList.add(theme)
+      return
+    }
+  } catch (e) {
+    // Failed to parse theme from storage - skip silently
+  }
+  
+  // Fallback: темная тема по умолчанию
+  const theme = 'dark'
   document.documentElement.classList.remove('light', 'dark')
   document.documentElement.classList.add(theme)
 }

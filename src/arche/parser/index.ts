@@ -46,6 +46,9 @@ export function extractWikilinks(content: string): string[] {
 export function markdownToPlainText(markdown: string): string {
   return markdown
     .replace(/^#+\s+/gm, '') // Убираем заголовки
+    .replace(/!\[\[[^\]]+\]\]/g, '') // Убираем ![[image.png]]
+    .replace(/!\[[^\]]*\]\([^\)]+\)/g, '') // Убираем ![alt](path)
+    .replace(/<img[^>]+>/gi, '') // Убираем <img> теги
     .replace(/\[\[([^\]]+)\]\]/g, '$1') // [[links]] -> links
     .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // [text](url) -> text
     .replace(/\*\*([^\*]+)\*\*/g, '$1') // **bold** -> bold
@@ -53,6 +56,7 @@ export function markdownToPlainText(markdown: string): string {
     .replace(/`([^`]+)`/g, '$1') // `code` -> code
     .replace(/^\s*[-*+]\s+/gm, '') // Убираем маркеры списков
     .replace(/^\s*\d+\.\s+/gm, '') // Убираем нумерацию
+    .replace(/^\s*!?[^\s]+\.(png|jpg|jpeg|gif|webp|svg)\s*/gim, '') // Убираем названия файлов изображений в начале строки
     .replace(/\n+/g, ' ') // Множественные переносы -> пробел
     .trim();
 }
@@ -128,7 +132,7 @@ export function parseNote(
       links,
     };
   } catch (error) {
-    console.error(`Error parsing note ${filePath}:`, error);
+    // Error parsing note - skip silently
     return null;
   }
 }
@@ -164,10 +168,6 @@ export async function loadNotes(): Promise<ArcheNote[]> {
     });
   }
 
-  console.log(`Found ${Object.keys(foundModules).length} markdown files`);
-  if (Object.keys(foundModules).length > 0) {
-    console.log('Sample paths:', Object.keys(foundModules).slice(0, 5));
-  }
   
   const notes: ArcheNote[] = [];
 
@@ -182,15 +182,9 @@ export async function loadNotes(): Promise<ArcheNote[]> {
     const note = parseNote(relativePath, content as string);
     if (note) {
       notes.push(note);
-    } else {
-      console.warn(`Failed to parse note: ${relativePath} (original path: ${path})`);
     }
   }
 
-  console.log(`Loaded ${notes.length} notes from arche-vault`);
-  if (notes.length > 0) {
-    console.log('Sample notes:', notes.slice(0, 3).map(n => ({ title: n.title, folder: n.folder })));
-  }
   return notes;
 }
 

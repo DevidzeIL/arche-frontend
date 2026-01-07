@@ -2,6 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { readdirSync, statSync } from 'fs'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Плагин для обслуживания статических файлов из arche-vault
 function archeVaultStaticPlugin() {
@@ -77,13 +80,9 @@ export default defineConfig({
         global: 'globalThis',
       },
     },
-    // Настройки для правильной обработки CommonJS модулей
-    commonjsOptions: {
-      include: [/eventemitter3/, /node_modules/],
-      transformMixedEsModules: true,
-    },
   },
   server: {
+    port: 5177,
     fs: {
       strict: false,
     },

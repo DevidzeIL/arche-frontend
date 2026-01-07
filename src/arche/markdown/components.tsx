@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useNavigate } from 'react-router-dom';
 import { useArcheStore } from '../state/store';
 import { cn } from '@/lib/utils';
 
@@ -29,11 +30,6 @@ if (Object.keys(imageModules).length === 0) {
   });
 }
 
-console.log('Loaded images:', Object.keys(imageModules).length);
-if (Object.keys(imageModules).length > 0) {
-  console.log('Sample image paths:', Object.keys(imageModules).slice(0, 3));
-  console.log('Sample image URLs:', Object.values(imageModules).slice(0, 3));
-}
 
 // Функция для получения URL изображения
 function getImageUrl(filename: string): string | null {
@@ -74,7 +70,7 @@ function getImageUrl(filename: string): string | null {
     }
   }
   
-  console.warn('Image not found:', normalizedFilename, 'Available:', Object.keys(normalizedModules));
+        // Image not found - skip silently
   return null;
 }
 
@@ -84,28 +80,42 @@ interface WikilinkButtonProps {
 }
 
 export function WikilinkButton({ title, displayText }: WikilinkButtonProps) {
-  const openNote = useArcheStore((state) => state.openNote);
+  const navigate = useNavigate();
   const getNoteByTitle = useArcheStore((state) => state.getNoteByTitle);
 
   const note = getNoteByTitle(title);
 
+  const handleClick = (e: React.MouseEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (note) {
+      navigate(`/note/${note.id}`);
+    }
+  };
+
+  // Используем span вместо <a>, чтобы браузер не мог обработать это как ссылку
   return (
-    <button
-      onClick={(e) => {
-        e.preventDefault();
-        if (note) {
-          openNote(note.id);
+    <span
+      role="link"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (note) {
+            navigate(`/note/${note.id}`);
+          }
         }
       }}
       className={cn(
-        'text-primary hover:underline font-medium inline',
-        !note && 'text-muted-foreground opacity-60'
+        'text-primary hover:underline font-medium inline cursor-pointer',
+        !note && 'text-muted-foreground opacity-60 cursor-not-allowed'
       )}
       title={note ? `Открыть: ${title}` : `Заметка не найдена: ${title}`}
     >
       {displayText || title}
       {!note && ' (?)'}
-    </button>
+    </span>
   );
 }
 
@@ -154,9 +164,18 @@ interface MarkdownViewerProps {
 
 export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
   const processedContent = preprocessWikilinks(content);
+  const navigate = useNavigate();
+
+  // Функция для определения, является ли ссылка внутренней
+  const isInternalLink = (href: string | undefined): boolean => {
+    if (!href) return false;
+    // Внутренние ссылки: начинаются с / (но не якорные ссылки #)
+    // Исключаем внешние ссылки (http://, https://, mailto:) и якорные (#)
+    return href.startsWith('/') && !href.startsWith('#');
+  };
 
   return (
-    <div className={cn('prose prose-slate dark:prose-invert max-w-none prose-headings:font-semibold prose-p:leading-7 prose-a:text-primary prose-strong:font-semibold', className)}>
+    <div className={cn('prose max-w-none prose-headings:font-semibold prose-p:leading-7 prose-a:text-primary prose-strong:font-semibold', className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -166,7 +185,40 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
               const title = href.replace('wikilink:', '');
               return <WikilinkButton title={title} displayText={String(children)} />;
             }
-            // Обычные ссылки
+            
+            // Обработка внутренних ссылок (используем роутинг)
+            if (isInternalLink(href)) {
+              return (
+                <a
+                  href={href}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (href) {
+                      navigate(href);
+                    }
+                  }}
+                  className="text-primary hover:underline cursor-pointer"
+                  {...props}
+                >
+                  {children}
+                </a>
+              );
+            }
+            
+            // Якорные ссылки (остаются на той же странице)
+            if (href?.startsWith('#')) {
+              return (
+                <a
+                  href={href}
+                  className="text-primary hover:underline"
+                  {...props}
+                >
+                  {children}
+                </a>
+              );
+            }
+            
+            // Внешние ссылки (открываем в новой вкладке)
             return (
               <a
                 href={href}
@@ -223,9 +275,8 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
                 src={imageSrc}
                 alt={alt || ''}
                 className="max-w-full h-auto rounded-lg my-4 border border-border shadow-sm"
-                onError={(e) => {
-                  console.error('Failed to load image:', imageSrc);
-                  const target = e.target as HTMLImageElement;
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
                   // Показываем placeholder
                   const placeholder = document.createElement('div');

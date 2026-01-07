@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ArcheNote, Tab, GraphSettings, AppSettings } from '../types';
-import { loadNotes, extractWikilinks, normalizeWikilinkTarget, EXCLUDED_FOLDERS } from '../parser';
+import type { ArcheNote, Tab, AppSettings } from '../types';
+import { loadNotes } from '../parser';
 
 // Нормализация title для строгого матчинга
 export function normalizeTitle(title: string): string {
@@ -29,7 +29,6 @@ interface ArcheStore {
   pinTab: (tabId: string) => void;
   unpinTab: (tabId: string) => void;
   setActiveTab: (tabId: string | null) => void;
-  updateGraphSettings: (settings: Partial<GraphSettings>) => void;
   
   // Getters
   getNote: (id: string) => ArcheNote | undefined;
@@ -38,34 +37,11 @@ interface ArcheStore {
   getCurrentNote: () => ArcheNote | undefined;
 }
 
-const defaultGraphSettings: GraphSettings = {
-  nodeColors: {},
-  nodeSizeBy: 'links',
-  linkDistance: 90, // Зафиксировано для Obsidian-like поведения
-  chargeStrength: -300,
-  filters: {
-    types: [],
-    domains: [],
-    statuses: [],
-    folders: [],
-  },
-  showOnlyConnected: false,
-  selectedNodeId: null,
-  showArrows: true,
-  textFadeThreshold: 0.6,
-  linkThickness: 1.5,
-  nodeSize: 5,
-  centerForce: 0.1, // Зафиксировано для Obsidian-like поведения
-  repelForce: -180, // Зафиксировано для Obsidian-like поведения
-  linkForce: 0.35, // Зафиксировано для Obsidian-like поведения
-};
-
 const defaultSettings: AppSettings = {
-  theme: 'light',
+  theme: 'dark',
   sidebarOpen: true,
   tabs: [],
   activeTabId: null,
-  graphSettings: defaultGraphSettings,
 };
 
 export const useArcheStore = create<ArcheStore>()(
@@ -96,8 +72,24 @@ export const useArcheStore = create<ArcheStore>()(
         set((state) => ({
           settings: { ...state.settings, theme },
         }));
-        document.documentElement.classList.remove('light', 'dark');
-        document.documentElement.classList.add(theme);
+        // Применяем тему к DOM немедленно
+        if (typeof document !== 'undefined') {
+          document.documentElement.classList.remove('light', 'dark');
+          document.documentElement.classList.add(theme);
+          // Также сохраняем в localStorage для быстрого доступа
+          try {
+            const stored = localStorage.getItem('arche-storage');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              parsed.state = parsed.state || {};
+              parsed.state.settings = parsed.state.settings || {};
+              parsed.state.settings.theme = theme;
+              localStorage.setItem('arche-storage', JSON.stringify(parsed));
+            }
+                } catch {
+                  // Failed to update theme in storage - skip silently
+                }
+        }
       },
 
       setSidebarOpen: (open) => {
@@ -197,17 +189,6 @@ export const useArcheStore = create<ArcheStore>()(
         }));
       },
 
-      updateGraphSettings: (partial) => {
-        set((state) => ({
-          settings: {
-            ...state.settings,
-            graphSettings: {
-              ...state.settings.graphSettings,
-              ...partial,
-            },
-          },
-        }));
-      },
 
       getNote: (id) => {
         return get().notesById.get(id);
@@ -249,16 +230,6 @@ export const useArcheStore = create<ArcheStore>()(
           settings: {
             ...currentState.settings,
             ...persisted.settings,
-            graphSettings: {
-              ...defaultGraphSettings,
-              ...currentState.settings.graphSettings,
-              ...persisted.settings?.graphSettings,
-              filters: {
-                ...defaultGraphSettings.filters,
-                ...currentState.settings.graphSettings.filters,
-                ...persisted.settings?.graphSettings?.filters,
-              },
-            },
           },
         };
       },
