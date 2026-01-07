@@ -101,15 +101,7 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
   
   // Ограничения скролла по годам записей (используются только для подсказок, миникарты и автофокуса, не для clamp)
   // КРИТИЧНО: clamp теперь использует hard limits из CAMERA_LIMITS, а не эти значения
-  const minYear = useMemo(() => {
-    if (filteredNotes.length === 0) return START_YEAR;
-    return Math.min(...filteredNotes.map(n => n.timeline.displayYear));
-  }, [filteredNotes]);
-
-  const maxYear = useMemo(() => {
-    if (filteredNotes.length === 0) return END_YEAR;
-    return Math.max(...filteredNotes.map(n => n.timeline.displayYear));
-  }, [filteredNotes]);
+  // Удалены minYear/maxYear так как они не используются (clamp использует hard limits)
 
   // Scroll controller (snap)
   const [scrollController, setScrollController] = useState<ScrollController | null>(null);

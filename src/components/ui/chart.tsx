@@ -290,8 +290,8 @@ const ChartLegendContent = React.forwardRef<
         )}
       >
         {payload
-          .filter((item: any) => item.type !== "none")
-          .map((item: any) => {
+          .filter((item: { type?: string }) => item.type !== "none")
+          .map((item: { type?: string; dataKey?: string; value?: string; color?: string }) => {
             const key = `${nameKey || item.dataKey || "value"}`
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
 

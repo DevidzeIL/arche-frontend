@@ -38,7 +38,7 @@ interface ArcheStore {
 }
 
 const defaultSettings: AppSettings = {
-  theme: 'light',
+  theme: 'dark',
   sidebarOpen: true,
   tabs: [],
   activeTabId: null,

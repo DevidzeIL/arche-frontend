@@ -65,7 +65,7 @@ export function clampCameraPan(
  */
 export function clampCameraPanY(
   cameraY: number,
-  opts: ClampCameraPanOptions
+  _opts: ClampCameraPanOptions
 ): number {
   // Для вертикального pan можно использовать те же принципы
   // или просто не ограничивать, если нет year-based проекции по Y

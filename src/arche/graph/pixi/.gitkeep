@@ -1,0 +1,3 @@
+# This directory contains pixi graph components that are excluded from TypeScript compilation
+# Files in this directory are not included in the build
+

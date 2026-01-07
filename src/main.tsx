@@ -18,7 +18,7 @@ const initTheme = () => {
     if (stored) {
       const parsed = JSON.parse(stored)
       // Zustand persist сохраняет в формате { state: { settings: { theme: ... } } }
-      const theme = parsed?.state?.settings?.theme || parsed?.settings?.theme || 'light'
+      const theme = parsed?.state?.settings?.theme || parsed?.settings?.theme || 'dark'
       document.documentElement.classList.remove('light', 'dark')
       document.documentElement.classList.add(theme)
       return
@@ -27,9 +27,8 @@ const initTheme = () => {
     // Failed to parse theme from storage - skip silently
   }
   
-  // Fallback: системная тема
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  const theme = prefersDark ? 'dark' : 'light'
+  // Fallback: темная тема по умолчанию
+  const theme = 'dark'
   document.documentElement.classList.remove('light', 'dark')
   document.documentElement.classList.add(theme)
 }
