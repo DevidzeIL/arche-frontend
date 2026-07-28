@@ -20,7 +20,7 @@ interface NavigationItem {
 
 const navigationItems: NavigationItem[] = [
   { path: '/', label: 'Главная', icon: Home },
-  { path: '/timeline', label: 'Таймлайн', icon: Clock },
+  { path: '/timeline', label: 'Карта', icon: Clock },
   { path: '/graph', label: 'Граф', icon: Network },
 ];
 

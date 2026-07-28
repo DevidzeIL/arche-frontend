@@ -1,7 +1,22 @@
-import { ArcheNote } from '@/arche/types';
-import { TimelineNote, TimelineMetadata } from '../types';
+import type { ArcheNote } from './types';
 
-type Precision = TimelineMetadata['precision'];
+/** Датировка заметки, готовая к раскладке на оси времени */
+export interface TimeSpanResolved {
+  startYear: number;
+  endYear?: number;
+  /** Год, в котором заметка стоит на шкале */
+  displayYear: number;
+  /** 0..1 — насколько заметка является ориентиром, а не деталью */
+  importance: number;
+  precision: 'exact' | 'approximate' | 'century';
+}
+
+/** Заметка с разрешённой датировкой */
+export interface DatedNote extends ArcheNote {
+  time: TimeSpanResolved;
+}
+
+type Precision = TimeSpanResolved['precision'];
 
 interface ParsedSpan {
   startYear: number;
@@ -10,20 +25,17 @@ interface ParsedSpan {
 }
 
 /**
- * Обогащает заметку временными метаданными.
- * Возвращает null, если у заметки нет датировки — такие заметки на таймлайн не попадают.
+ * Разрешает датировку заметки.
+ * Возвращает null, если датировки нет — такие заметки на ось времени не попадают.
  */
-export function enrichNoteWithTimeline(note: ArcheNote): TimelineNote | null {
-  const timeline = extractTimelineFromNote(note);
+export function resolveNoteTime(note: ArcheNote): DatedNote | null {
+  const time = extractTimelineFromNote(note);
 
-  if (!timeline) {
+  if (!time) {
     return null;
   }
 
-  return {
-    ...note,
-    timeline,
-  };
+  return { ...note, time };
 }
 
 /**
@@ -36,7 +48,7 @@ export function enrichNoteWithTimeline(note: ArcheNote): TimelineNote | null {
  * из которого регексп раньше выхватывал год из `created:` и ставил
  * все недатированные заметки в текущий год.
  */
-function extractTimelineFromNote(note: ArcheNote): TimelineMetadata | undefined {
+function extractTimelineFromNote(note: ArcheNote): TimeSpanResolved | undefined {
   const importance = calculateImportance(note);
 
   const span =
@@ -315,10 +327,10 @@ export function formatYear(year: number, precision: 'exact' | 'approximate' | 'c
 }
 
 /**
- * Пакетное обогащение всех заметок
+ * Пакетное разрешение датировок
  */
-export function enrichAllNotes(notes: ArcheNote[]): TimelineNote[] {
+export function resolveAllNoteTimes(notes: ArcheNote[]): DatedNote[] {
   return notes
-    .map(enrichNoteWithTimeline)
-    .filter((note): note is TimelineNote => note !== null);
+    .map(resolveNoteTime)
+    .filter((note): note is DatedNote => note !== null);
 }

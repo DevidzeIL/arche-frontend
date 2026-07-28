@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Calendar, Palette, Ruler, MapPin, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
+import { NoteConnections } from './NoteConnections';
 import { MarkdownViewer } from '@/arche/markdown/components';
 import { ArcheNote } from '@/arche/types';
 import { WorkMetadata } from './types';
@@ -183,6 +184,10 @@ export function WorkPage({ note, metadata, relatedNotes }: WorkPageProps) {
             </article>
           </div>
         </div>
+        
+        <NoteConnections note={note} />
+
+
         
         {/* Связанные заметки */}
         {relatedNotes.length > 0 && (

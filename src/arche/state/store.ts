@@ -2,14 +2,10 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ArcheNote, Tab, AppSettings } from '../types';
 import { loadNotes } from '../parser';
+import { buildKnowledgeGraph, type KnowledgeGraph } from '../knowledge';
 
-// Нормализация title для строгого матчинга
-export function normalizeTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, ' '); // Заменяем множественные пробелы на один
-}
+export { normalizeTitle } from '../normalize';
+import { normalizeTitle } from '../normalize';
 
 interface ArcheStore {
   notes: ArcheNote[];
@@ -17,6 +13,8 @@ interface ArcheStore {
   notesByTitle: Map<string, ArcheNote>;
   /** noteId -> заметки, которые на неё ссылаются */
   backlinks: Map<string, ArcheNote[]>;
+  /** Граф знаний строится один раз при загрузке: он нужен и карте, и страницам заметок */
+  knowledgeGraph: KnowledgeGraph;
   loaded: boolean;
   
   // Settings
@@ -53,6 +51,7 @@ export const useArcheStore = create<ArcheStore>()(
       notesById: new Map(),
       notesByTitle: new Map(),
       backlinks: new Map(),
+      knowledgeGraph: buildKnowledgeGraph([]),
       loaded: false,
       settings: defaultSettings,
 
@@ -80,7 +79,14 @@ export const useArcheStore = create<ArcheStore>()(
           });
         });
 
-        set({ notes, notesById, notesByTitle, backlinks, loaded: true });
+        set({
+          notes,
+          notesById,
+          notesByTitle,
+          backlinks,
+          knowledgeGraph: buildKnowledgeGraph(notes),
+          loaded: true,
+        });
       },
 
       // Запись в localStorage делает zustand persist; здесь только состояние.

@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { RootLayout } from '@/layouts/RootLayout';
-import { TimelinePage } from '@/pages/TimelinePage';
+import { MapPage } from '@/pages/MapPage';
 import { NotePage } from '@/pages/NotePage';
 import { GraphPage } from '@/pages/GraphPage';
 import { HomePage } from '@/pages/HomePage';
@@ -18,8 +18,9 @@ export const router = createBrowserRouter([
         element: <HomePage />,
       },
       {
+        // Путь оставлен прежним: старые ссылки на /timeline продолжают работать
         path: 'timeline',
-        element: <TimelinePage />,
+        element: <MapPage />,
       },
       {
         path: 'note/:noteId',

@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Users, BookOpen, Lightbulb, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
+import { NoteConnections } from './NoteConnections';
 import { MarkdownViewer } from '@/arche/markdown/components';
 import { ArcheNote } from '@/arche/types';
 import { TimeMetadata } from './types';
@@ -156,6 +157,10 @@ export function TimePage({ note, metadata, relatedNotes }: TimePageProps) {
             </div>
           )}
         </div>
+        
+        <NoteConnections note={note} />
+
+
         
         {/* Связанные заметки */}
         {relatedNotes.length > 0 && (
