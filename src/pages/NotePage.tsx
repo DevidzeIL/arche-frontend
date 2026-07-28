@@ -11,6 +11,7 @@ export function NotePage() {
   const navigate = useNavigate();
   const notes = useArcheStore((state) => state.notes);
   const getNote = useArcheStore((state) => state.getNote);
+  const getNoteByTitle = useArcheStore((state) => state.getNoteByTitle);
 
   const note = noteId ? getNote(noteId) : null;
 
@@ -31,10 +32,10 @@ export function NotePage() {
     );
   }
 
-  // Находим связанные заметки
+  // Связанные заметки: индекс по названию уже есть в сторе, линейный поиск не нужен
   const relatedNotes = note.links
-    .map((linkTitle) => notes.find((n) => n.title === linkTitle))
-    .filter((n): n is typeof notes[0] => n !== undefined)
+    .map((linkTitle) => getNoteByTitle(linkTitle))
+    .filter((n): n is typeof notes[0] => n !== undefined && n.id !== note.id)
     .slice(0, 12);
 
   // Парсим метаданные
@@ -60,7 +61,9 @@ export function NotePage() {
         />
       );
     
+    // Течения (модернизм, романтизм…) устроены как концепции — шаблон подходит
     case 'concept':
+    case 'culture':
       return (
         <ConceptPage
           note={note}
@@ -68,7 +71,7 @@ export function NotePage() {
           relatedNotes={relatedNotes}
         />
       );
-    
+
     case 'time':
     case 'epoch':
       return (

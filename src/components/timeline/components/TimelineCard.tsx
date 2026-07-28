@@ -116,7 +116,7 @@ export const TimelineCard = memo(function TimelineCard({
         }}
         role="button"
         tabIndex={0}
-        aria-label={`${note.title}, ${formatYear(timeline.startYear)}`}
+        aria-label={`${note.title}, ${formatYear(timeline.startYear, timeline.precision)}`}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -148,11 +148,11 @@ export const TimelineCard = memo(function TimelineCard({
             <TypeBadge type={note.type} />
           </div>
           
-          {/* Временной период */}
+          {/* Временной период — precision решает, показывать годы или века */}
           <div className="text-xs font-mono text-muted-foreground">
             {timeline.endYear
-              ? `${formatYear(timeline.startYear)}—${formatYear(timeline.endYear)}`
-              : formatYear(timeline.startYear)}
+              ? `${formatYear(timeline.startYear, timeline.precision)}—${formatYear(timeline.endYear, timeline.precision)}`
+              : formatYear(timeline.startYear, timeline.precision)}
           </div>
           
           {/* Превью текста - LOD (только если не dimmed) */}

@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { X, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { domainLabel, noteTypePluralLabel } from '@/arche/noteTypes';
 
 export interface GraphSettings {
   nodeSize: number;
@@ -25,36 +26,23 @@ export interface GraphSettings {
 interface GraphSettingsPanelProps {
   settings: GraphSettings;
   onSettingsChange: (settings: GraphSettings) => void;
+  /** Типы и домены, реально встречающиеся в данных */
+  availableTypes: string[];
+  availableDomains: string[];
   onClose?: () => void;
   className?: string;
 }
 
-const TYPE_OPTIONS = [
-  { value: 'hub', label: 'Хабы' },
-  { value: 'time', label: 'Эпохи' },
-  { value: 'concept', label: 'Концепции' },
-  { value: 'person', label: 'Персоны' },
-  { value: 'work', label: 'Работы' },
-  { value: 'place', label: 'Места' },
-  { value: 'event', label: 'События' },
-  { value: 'note', label: 'Заметки' },
-];
-
-const DOMAIN_OPTIONS = [
-  { value: 'philosophy', label: 'Философия' },
-  { value: 'art', label: 'Искусство' },
-  { value: 'literature', label: 'Литература' },
-  { value: 'science', label: 'Наука' },
-  { value: 'history', label: 'История' },
-  { value: 'psychology', label: 'Психология' },
-];
-
 export function GraphSettingsPanel({
   settings,
   onSettingsChange,
+  availableTypes,
+  availableDomains,
   onClose,
   className,
 }: GraphSettingsPanelProps) {
+  const TYPE_OPTIONS = availableTypes.map((value) => ({ value, label: noteTypePluralLabel(value) }));
+  const DOMAIN_OPTIONS = availableDomains.map((value) => ({ value, label: domainLabel(value) }));
   const [isOpen, setIsOpen] = useState(true);
 
   const updateSetting = <K extends keyof GraphSettings>(

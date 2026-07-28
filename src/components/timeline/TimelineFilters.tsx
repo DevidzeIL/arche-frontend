@@ -2,37 +2,33 @@ import { FilterState, ZoomLevel } from './types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
-import { NOTE_TYPES_ORDERED, NOTE_TYPE_META } from '@/arche/noteTypes';
+import { domainLabel, noteTypePluralLabel } from '@/arche/noteTypes';
 
 interface TimelineFiltersProps {
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
   zoomLevel: ZoomLevel;
   onZoomChange: (level: ZoomLevel) => void;
+  /** Типы и домены, реально встречающиеся на таймлайне */
+  availableTypes: string[];
+  availableDomains: string[];
   className?: string;
 }
-
-const TYPE_OPTIONS = NOTE_TYPES_ORDERED.filter((type) => type !== 'note').map((type) => ({
-  value: type,
-  label: NOTE_TYPE_META[type].pluralLabel,
-}));
-
-const DOMAIN_OPTIONS = [
-  { value: 'philosophy', label: 'Философия' },
-  { value: 'art', label: 'Искусство' },
-  { value: 'literature', label: 'Литература' },
-  { value: 'science', label: 'Наука' },
-  { value: 'history', label: 'История' },
-  { value: 'psychology', label: 'Психология' },
-];
 
 export function TimelineFilters({
   filters,
   onFiltersChange,
   zoomLevel,
   onZoomChange,
+  availableTypes,
+  availableDomains,
   className,
 }: TimelineFiltersProps) {
+  const TYPE_OPTIONS = availableTypes.map((value) => ({
+    value,
+    label: noteTypePluralLabel(value),
+  }));
+  const DOMAIN_OPTIONS = availableDomains.map((value) => ({ value, label: domainLabel(value) }));
   const toggleType = (type: string) => {
     const newTypes = filters.types.includes(type)
       ? filters.types.filter(t => t !== type)

@@ -121,3 +121,24 @@ export function noteTypeLabel(type?: string): string {
 export function noteTypePluralLabel(type?: string): string {
   return noteTypeMeta(type).pluralLabel;
 }
+
+/**
+ * Домены (поле domain во frontmatter).
+ * Списки в фильтрах строятся из реальных данных, а отсюда берётся только подпись —
+ * захардкоженные перечни раньше не показывали religion, culture и education.
+ */
+export const DOMAIN_LABELS: Record<string, string> = {
+  philosophy: 'Философия',
+  history: 'История',
+  culture: 'Культура',
+  religion: 'Религия',
+  science: 'Наука',
+  literature: 'Литература',
+  art: 'Искусство',
+  education: 'Образование',
+  psychology: 'Психология',
+};
+
+export function domainLabel(domain: string): string {
+  return DOMAIN_LABELS[domain] ?? domain;
+}

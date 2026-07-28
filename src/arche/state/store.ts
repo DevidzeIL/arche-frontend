@@ -15,6 +15,8 @@ interface ArcheStore {
   notes: ArcheNote[];
   notesById: Map<string, ArcheNote>;
   notesByTitle: Map<string, ArcheNote>;
+  /** noteId -> заметки, которые на неё ссылаются */
+  backlinks: Map<string, ArcheNote[]>;
   loaded: boolean;
   
   // Settings
@@ -50,6 +52,7 @@ export const useArcheStore = create<ArcheStore>()(
       notes: [],
       notesById: new Map(),
       notesByTitle: new Map(),
+      backlinks: new Map(),
       loaded: false,
       settings: defaultSettings,
 
@@ -61,11 +64,23 @@ export const useArcheStore = create<ArcheStore>()(
         notes.forEach((note) => {
           notesById.set(note.id, note);
           // Индекс по нормализованному title для строгого матчинга
-          const normalizedTitle = normalizeTitle(note.title);
-          notesByTitle.set(normalizedTitle, note);
+          notesByTitle.set(normalizeTitle(note.title), note);
         });
 
-        set({ notes, notesById, notesByTitle, loaded: true });
+        // Обратные ссылки считаем один раз при загрузке:
+        // иначе каждый вызов getBacklinks — полный проход по всем заметкам
+        const backlinks = new Map<string, ArcheNote[]>();
+        notes.forEach((note) => {
+          note.links.forEach((linkTitle) => {
+            const target = notesByTitle.get(normalizeTitle(linkTitle));
+            if (!target || target.id === note.id) return;
+            const list = backlinks.get(target.id) ?? [];
+            if (!list.some((n) => n.id === note.id)) list.push(note);
+            backlinks.set(target.id, list);
+          });
+        });
+
+        set({ notes, notesById, notesByTitle, backlinks, loaded: true });
       },
 
       // Запись в localStorage делает zustand persist; здесь только состояние.
@@ -184,10 +199,7 @@ export const useArcheStore = create<ArcheStore>()(
       },
 
       getBacklinks: (noteId) => {
-        const note = get().notesById.get(noteId);
-        if (!note) return [];
-
-        return get().notes.filter((n) => n.links.includes(note.title));
+        return get().backlinks.get(noteId) ?? [];
       },
 
       getCurrentNote: () => {

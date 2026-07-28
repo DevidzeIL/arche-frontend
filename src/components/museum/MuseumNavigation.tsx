@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, Clock, Network, Moon, Sun, Menu } from 'lucide-react';
+import { Home, Clock, Network, Moon, Sun, Menu, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useArcheStore } from '@/arche/state/store';
 import { useState } from 'react';
@@ -24,7 +24,11 @@ const navigationItems: NavigationItem[] = [
   { path: '/graph', label: 'Граф', icon: Network },
 ];
 
-export function MuseumNavigation() {
+interface MuseumNavigationProps {
+  onOpenSearch?: () => void;
+}
+
+export function MuseumNavigation({ onOpenSearch }: MuseumNavigationProps) {
   const location = useLocation();
   const theme = useArcheStore((state) => state.settings.theme);
   const setTheme = useArcheStore((state) => state.setTheme);
@@ -67,6 +71,7 @@ export function MuseumNavigation() {
                 <Link
                   key={item.path}
                   to={item.path}
+                  aria-current={active ? 'page' : undefined}
                   className={cn(
                     'flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200',
                     'text-sm font-medium',
@@ -75,7 +80,7 @@ export function MuseumNavigation() {
                       : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4" aria-hidden />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -84,16 +89,33 @@ export function MuseumNavigation() {
 
           {/* Действия */}
           <div className="flex items-center space-x-2">
+            {onOpenSearch && (
+              <button
+                type="button"
+                onClick={onOpenSearch}
+                aria-label="Поиск по заметкам"
+                className={cn(
+                  'hidden sm:flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg border border-border/60',
+                  'text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors'
+                )}
+              >
+                <Search className="h-4 w-4" aria-hidden />
+                <span>Поиск</span>
+                <kbd className="text-[10px] px-1.5 py-0.5 rounded border border-border/60">⌘K</kbd>
+              </button>
+            )}
+
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
+              aria-label={theme === 'light' ? 'Включить тёмную тему' : 'Включить светлую тему'}
               className="rounded-full"
             >
               {theme === 'light' ? (
-                <Moon className="h-4 w-4" />
+                <Moon className="h-4 w-4" aria-hidden />
               ) : (
-                <Sun className="h-4 w-4" />
+                <Sun className="h-4 w-4" aria-hidden />
               )}
             </Button>
 
@@ -116,6 +138,22 @@ export function MuseumNavigation() {
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col space-y-2 mt-8">
+                  {onOpenSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onOpenSearch();
+                      }}
+                      className={cn(
+                        'flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 w-full',
+                        'text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                      )}
+                    >
+                      <Search className="h-5 w-5" aria-hidden />
+                      <span>Поиск</span>
+                    </button>
+                  )}
                   {navigationItems.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.path);

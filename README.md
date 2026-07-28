@@ -1,405 +1,140 @@
-# Arche — Философская База Знаний
+# Arche — личная энциклопедия культуры и философии
 
-**Museum-Style UI + Interactive Timeline + Knowledge Graph**
+Obsidian-хранилище с заметками превращается в статичный сайт: каталог с поиском,
+интерактивный таймлайн и граф связей. Бэкенда нет — заметки вшиваются в бандл на этапе сборки.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
-![React](https://img.shields.io/badge/react-19.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-
----
-
-## 🎯 Что Это?
-
-**Arche** — интерактивное приложение для исследования философских концепций, персон и работ через:
-- 🕰️ **Timeline** — хронологическая визуализация с Focus Mode
-- 🌐 **Graph** — граф связей между заметками (Matter.js + Pixi.js)
-- 📝 **Notes** — Markdown заметки с wikilinks
-- 🎨 **Museum UI** — тёмная элегантная тема
-
----
-
-## ✨ Ключевые Фичи
-
-### 🕰️ Time Ruler
-
-**Интерактивная временная линейка:**
-- Плавный scroll с инерцией
-- Snap к значимым точкам (персоны, работы, эпохи)
-- 3 уровня LOD (out/mid/in)
-- Focus Mode с затемнением
-- SVG линии связей
-- Hover highlights
-- Фильтры: типы + домены
-- URL state sync
-- Keyboard shortcuts
-
-[Подробнее в TIME_RULER_USAGE.md](docs/TIME_RULER_USAGE.md)
-
-### 🌐 Knowledge Graph
-
-**Физическая визуализация связей:**
-- Matter.js физика (гравитация, отталкивание)
-- Pixi.js рендеринг (60fps)
-- Anchor forces (time-axis, hubs)
-- Hover/select highlights
-- Canvas-based для производительности
-
-### 🎨 Museum Design
-
-**Элегантный UI:**
-- Черный/графит палитра (oklch)
-- Serif типографика (Georgia)
-- Grain texture
-- Тонкие линии
-- Минимальные акценты
-
----
-
-## 🚀 Быстрый Старт
-
-### Требования
-
-- Node.js 18+
-- pnpm (рекомендуется)
-
-### Установка
+## Запуск
 
 ```bash
-# Клонировать
-git clone https://github.com/your-username/arche.git
-cd arche
-
-# Установить зависимости
 pnpm install
-
-# Запустить dev server
-pnpm dev
+pnpm dev        # http://localhost:5177
 ```
 
-**Откройте:** http://localhost:5173
+Команды:
 
-### Структура
+| Команда | Что делает |
+| --- | --- |
+| `pnpm dev` | Dev-сервер с hot reload |
+| `pnpm build` | Проверка типов + production-сборка в `dist/` |
+| `pnpm preview` | Локальный просмотр собранного `dist/` |
+| `pnpm typecheck` | Только проверка типов |
+
+## Структура
 
 ```
-arche/
-├── arche-vault/          # Markdown заметки
-│   ├── 00_HUB/           # Хабы
-│   ├── 01_Time/          # Эпохи
-│   ├── 02_Persons/       # Персоны
-│   ├── 03_Concepts/      # Концепции
-│   ├── 04_Works/         # Работы
-│   └── _imgs/            # Изображения
-├── src/
-│   ├── components/
-│   │   ├── museum/       # Museum компоненты
-│   │   └── timeline/     # Time Ruler
-│   ├── pages/            # React Router страницы
-│   └── arche/            # Core логика
-└── docs/                 # Документация
+arche-vault/           # Заметки (источник данных)
+  00_HUB/              # Хабы-указатели
+  01_Time/             # Эпохи
+  02_People/           # Персоны
+  03_Concepts/         # Концепции
+  05_Works/            # Работы
+  06_Culture/          # Культурные течения
+  _imgs/               # Изображения
+  _rules/, _templates/ # Не попадают в приложение (папки с _ игнорируются)
+
+src/
+  arche/
+    noteTypes.ts       # Реестр типов заметок: подписи, цвета, порядок
+    search.ts          # Поиск и фильтрация (главная + Cmd+K)
+    parser/            # Разбор markdown и frontmatter
+    state/             # Zustand-store, индексы и обратные ссылки
+    markdown/          # Рендер markdown и wikilinks
+  components/
+    museum/            # Оболочка: навигация, карточки, бейджи
+    timeline/          # Таймлайн: проекция, строки, слои, скролл
+    graph/             # Настройки графа
+    search/            # Палитра Cmd+K
+    pages/             # Шаблоны страниц по типу заметки
+    ui/                # shadcn/ui
+  pages/               # Экраны роутера
 ```
 
----
+## Разделы
 
-## 📖 Документация
+- **Главная** — каталог по типам, поиск и фильтры (состояние живёт в URL, ссылкой можно делиться)
+- **Таймлайн** (`/timeline`) — заметки на шкале от −800 до 2025 по семантическим строкам,
+  зум out/mid/in, focus-mode по клику, миникарта
+- **Граф** (`/graph`) — force-directed граф связей по wikilinks
+- **Заметка** (`/note/:id`) — свой шаблон для персон, работ, концепций и эпох
 
-### Руководства
+Горячие клавиши: `⌘K` / `Ctrl+K` или `/` — поиск, `Esc` — выйти из focus-mode.
 
-- **[TIME_RULER_USAGE.md](docs/TIME_RULER_USAGE.md)** — использование Time Ruler
-- **[FOCUS_MODE_GUIDE.md](docs/FOCUS_MODE_GUIDE.md)** — Focus Mode и интерактивность
-- **[TIME_RULER_DESIGN.md](docs/TIME_RULER_DESIGN.md)** — архитектура и дизайн
-- **[REDESIGN_IMPLEMENTATION.md](docs/REDESIGN_IMPLEMENTATION.md)** — гайд по редизайну
-- **[PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)** — общий обзор
+## Как добавить заметку
 
----
-
-## 🎮 Использование
-
-### Timeline
-
-**Навигация:**
-- Колёсико мыши — scroll по временной оси
-- Клик на карточку — Focus Mode
-- Escape — выход из Focus Mode
-- Мини-карта — быстрый переход к году
-
-**Фильтры:**
-- Типы: hub/time/concept/person/work/place/event/note
-- Домены: philosophy/art/literature/science/history/psychology
-- Zoom: out (века) / mid (десятилетия) / in (годы)
-
-**Focus Mode:**
-- Клик → карточка центрируется и увеличивается
-- Связанные заметки подсвечиваются
-- SVG линии показывают связи
-- Остальные карточки затемняются
-- Hover на другую карточку → preview связей
-
-### Graph
-
-**Навигация:**
-- Pan — drag фона
-- Zoom — колёсико мыши
-- Клик на ноду — выбрать (highlight соседей)
-- Hover — preview связей
-
-### Notes
-
-**Просмотр:**
-- Markdown рендеринг с syntax highlighting
-- Wikilinks `[[название]]` → кликабельные ссылки
-- Изображения из `_imgs/`
-- Связанные заметки (incoming/outgoing)
-
----
-
-## 🛠️ Технологии
-
-```json
-{
-  "frontend": {
-    "react": "^19.0.0",
-    "react-router-dom": "^7.11.0",
-    "tailwindcss": "^3.4.19",
-    "shadcn/ui": "latest"
-  },
-  "visualization": {
-    "pixi.js": "^8.14.3",
-    "@pixi/react": "^8.0.5",
-    "matter-js": "^0.20.0"
-  },
-  "content": {
-    "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
-  },
-  "state": {
-    "zustand": "^5.0.9"
-  },
-  "build": {
-    "vite": "^6.0.11",
-    "typescript": "^5.7.3"
-  }
-}
-```
-
----
-
-## 📝 Добавление Контента
-
-### Создание Заметки
+Создайте `.md` в подходящей папке `arche-vault/`:
 
 ```markdown
 ---
 id: person-plato-001
 type: person
-status: mature
-domain:
-  - philosophy
-tags:
-  - ancient-greece
-  - idealism
+domain: [philosophy]
+status: seed
+start_year: -428
+end_year: -348
+year_precision: approximate
+created: 2026-01-03
 ---
 
 # Платон
 
-**428-348 до н.э.** — древнегреческий философ.
+**Годы жизни:** 428/427–348/347 до н.э.
 
 Ученик [[Сократ|Сократа]], учитель [[Аристотель|Аристотеля]].
-
-## Основные работы
-
-- [[Государство]]
-- [[Федон]]
-- [[Пир]]
-
-## Ключевые идеи
-
-Платон разработал [[Теория идей|теорию идей]]...
 ```
 
-**Поля:**
-- `id` — уникальный ID
-- `type` — person/concept/work/time/place/event/note/hub
-- `status` — seedling/sapling/mature/evergreen
-- `domain` — философия, искусство, литература, наука...
-- `tags` — произвольные теги
+### Поля frontmatter
 
-**Timeline:**
-Даты автоматически извлекаются из текста:
-- `"428-348 до н.э."` → startYear: -428, endYear: -348
-- `"1900"` → startYear: 1900
-- `"5 век до н.э."` → примерно -450
+| Поле | Обязательно | Значения |
+| --- | --- | --- |
+| `id` | да | Уникальный идентификатор, он же адрес страницы `/note/<id>` |
+| `type` | да | `hub`, `time`, `person`, `work`, `concept`, `culture`, `event`, `place`, `note` |
+| `domain` | нет | `philosophy`, `history`, `culture`, `religion`, `science`, `literature`, `art`, `education`, `psychology` |
+| `status` | нет | Стадия проработки заметки |
+| `start_year` | для таймлайна | Год начала. До н.э. — отрицательный: `-428` |
+| `end_year` | нет | Год окончания интервала |
+| `display_year` | нет | Год, в котором заметка стоит на шкале (по умолчанию выводится, см. ниже) |
+| `year_precision` | нет | `exact`, `approximate`, `century` — влияет на формат подписи |
 
-### Добавление Изображений
+### Как считается датировка
+
+Порядок источников, от надёжного к запасному:
+
+1. `start_year` / `end_year` из frontmatter — **основной способ**
+2. Датировка из текста заметки: строка `**Годы жизни:** 384–322 до н.э.`, `**Год:** 1795`,
+   римские века (`XIV–XVI века`), формы со слэшем (`428/427–348/347 до н.э.`)
+3. Для эпох — догадка по названию
+
+Заметка без датировки на таймлайн не попадает, но остаётся в каталоге, поиске и графе.
+
+Год на шкале (`display_year`), если не задан явно: для персон и работ — год начала
+(рождение, публикация), для эпох, концепций и течений — середина интервала.
+
+Новый тип заметок добавляется в одном месте — [src/arche/noteTypes.ts](src/arche/noteTypes.ts).
+Подписи, цвета, порядок секций, строки таймлайна и фильтры подхватят его автоматически.
+
+### Изображения
+
+Положите файл в `arche-vault/_imgs/` и сошлитесь любым способом:
 
 ```markdown
-![Описание](Pasted image 20260103222929.png)
-
-или Obsidian-style:
-
-![[Pasted image 20260103222929.png]]
+![[Plato.png]]
+![Платон](Plato.png)
 ```
 
-Поместите изображение в `arche-vault/_imgs/`
+## Технологии
 
----
+React 19, TypeScript, Vite 5, Tailwind 3 + shadcn/ui, React Router 7, Zustand,
+react-markdown + remark-gfm, react-force-graph-2d. Таймлайн написан вручную,
+без библиотеки.
 
-## 🎨 Кастомизация
+## Деплой
 
-### Изменение Темы
+Netlify: сборка `npm run build`, публикация `dist`, SPA-fallback настроен
+в [netlify.toml](netlify.toml).
 
-`src/index.css`:
+## Документация
 
-```css
-:root {
-  --background: oklch(0.08 0 0); /* Чёрный */
-  --foreground: oklch(0.95 0 0); /* Светлый текст */
-  /* ... */
-}
-```
-
-### Настройка Time Ruler
-
-`src/components/timeline/TimeRuler.tsx`:
-
-```typescript
-const DEFAULT_EPOCHS = [
-  { name: 'Античность', startYear: -800, endYear: 500 },
-  // ... добавить свои эпохи
-];
-
-const START_YEAR = -800;
-const END_YEAR = 2025;
-```
-
-### Snap Параметры
-
-```typescript
-const controller = new ScrollController(
-  setCurrentPosition,
-  {
-    enabled: true,
-    threshold: 10,  // годы
-    strength: 0.7,  // 0-1
-  },
-  snapPoints
-);
-```
-
----
-
-## 🧪 Разработка
-
-### Команды
-
-```bash
-pnpm dev          # Dev server (localhost:5173)
-pnpm build        # Production build
-pnpm preview      # Preview build
-pnpm lint         # ESLint
-pnpm type-check   # TypeScript check
-```
-
-### Структура Компонентов
-
-```
-src/
-├── components/
-│   ├── museum/
-│   │   ├── GrainBackground.tsx
-│   │   ├── MuseumCard.tsx
-│   │   ├── MuseumLayout.tsx
-│   │   ├── MuseumNavigation.tsx
-│   │   └── TypeBadge.tsx
-│   │
-│   ├── timeline/
-│   │   ├── TimeRuler.tsx
-│   │   ├── TimelineFilters.tsx
-│   │   ├── TimelineTrack.tsx
-│   │   ├── TimelineCard.tsx
-│   │   ├── TimelineMiniMap.tsx
-│   │   ├── ConnectionLines.tsx
-│   │   ├── ScrollController.ts
-│   │   └── utils/
-│   │
-│   └── ui/                # shadcn/ui
-│
-├── pages/
-│   ├── HomePage.tsx
-│   ├── TimelinePage.tsx
-│   ├── NotePage.tsx
-│   └── GraphPage.tsx
-│
-├── layouts/
-│   └── RootLayout.tsx
-│
-├── routes/
-│   └── index.tsx
-│
-└── arche/
-    ├── graph/             # Pixi.js Graph
-    ├── markdown/          # Markdown рендеринг
-    ├── parser/            # Парсер заметок
-    └── state/             # Zustand store
-```
-
----
-
-## 🔧 Troubleshooting
-
-### Проблема: Заметки не появляются на Timeline
-
-**Причина:** Нет дат в контенте
-
-**Решение:**
-1. Добавьте даты в markdown: `"384-322 до н.э."`
-2. Или добавьте frontmatter:
-```yaml
-timeline:
-  start_year: -384
-  end_year: -322
-```
-
-### Проблема: Изображения не загружаются
-
-**Причина:** Неверный путь
-
-**Решение:**
-1. Поместите в `arche-vault/_imgs/`
-2. Используйте `![[filename.png]]` или `![alt](filename.png)`
-3. Проверьте консоль на ошибки
-
-### Проблема: Snap не работает
-
-**Причина:** Нет snap points
-
-**Решение:**
-1. Убедитесь, что заметки имеют `type: person/work/time`
-2. Увеличьте `threshold` в `ScrollController`
-
----
-
-## 📄 Лицензия
-
-MIT
-
----
-
-## 🙏 Благодарности
-
-- [Josh Warren](https://www.joshwarrren.com/) — вдохновение для графа
-- [Obsidian](https://obsidian.md) — вдохновение для UI
-- [shadcn/ui](https://ui.shadcn.com/) — компоненты
-- [Pixi.js](https://pixijs.com/) — рендеринг
-- [Matter.js](https://brm.io/matter-js/) — физика
-
----
-
-## 🔗 Ссылки
-
-- **Документация:** [docs/](docs/)
-- **Issues:** GitHub Issues
-- **Discussions:** GitHub Discussions
-
----
-
-**Enjoy exploring knowledge through time!** 🕰️✨
+- [docs/TIME_RULER_USAGE.md](docs/TIME_RULER_USAGE.md) — работа с таймлайном
+- [docs/TIME_RULER_DESIGN.md](docs/TIME_RULER_DESIGN.md) — устройство таймлайна
+- [docs/FOCUS_MODE_GUIDE.md](docs/FOCUS_MODE_GUIDE.md) — focus-mode
+- [docs/PAGE_TEMPLATES_GUIDE.md](docs/PAGE_TEMPLATES_GUIDE.md) — шаблоны страниц

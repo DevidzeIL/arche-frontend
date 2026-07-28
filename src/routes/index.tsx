@@ -4,11 +4,14 @@ import { TimelinePage } from '@/pages/TimelinePage';
 import { NotePage } from '@/pages/NotePage';
 import { GraphPage } from '@/pages/GraphPage';
 import { HomePage } from '@/pages/HomePage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
+import { ErrorPage } from '@/pages/ErrorPage';
 
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
+    errorElement: <ErrorPage />,
     children: [
       {
         index: true,
@@ -26,7 +29,11 @@ export const router = createBrowserRouter([
         path: 'graph',
         element: <GraphPage />,
       },
+      {
+        // Ловим всё остальное внутри layout — раньше неизвестный адрес давал пустой экран
+        path: '*',
+        element: <NotFoundPage />,
+      },
     ],
   },
 ]);
-

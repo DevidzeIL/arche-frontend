@@ -107,7 +107,6 @@ export default defineConfig({
     'global': 'globalThis',
   },
   optimizeDeps: {
-    force: true, // Принудительная пересборка зависимостей
     esbuildOptions: {
       define: {
         global: 'globalThis',

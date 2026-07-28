@@ -4,12 +4,17 @@
  */
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { useArcheStore } from '@/arche/state/store';
+import { useArcheStore, normalizeTitle } from '@/arche/state/store';
+import { noteTypeMeta, NOTE_TYPES_ORDERED } from '@/arche/noteTypes';
+import { collectDomains, collectTypes } from '@/arche/search';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useNavigate } from 'react-router-dom';
 import { GraphSettingsPanel, GraphSettings } from '@/components/graph/GraphSettingsPanel';
 // import { clampCameraPan, ClampCameraPanOptions } from '@/arche/graph/clampCameraPan';
 // TODO: Добавить ограничения pan для ForceGraph2D когда будет year-based режим
+
+/** Цвета берём из общего реестра типов — canvas не умеет CSS-переменные */
+const getNodeColor = (type?: string): string => noteTypeMeta(type).graphColor;
 
 const DEFAULT_SETTINGS: GraphSettings = {
   nodeSize: 8,
@@ -31,6 +36,14 @@ export function GraphPage() {
   // const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   // TODO: Использовать для ограничений pan когда будет year-based режим
   
+  // Списки фильтров строим из реальных данных, а не из захардкоженного перечня
+  const availableTypes = useMemo(() => {
+    const present = new Set(collectTypes(notes));
+    return NOTE_TYPES_ORDERED.filter((type) => present.has(type)) as string[];
+  }, [notes]);
+
+  const availableDomains = useMemo(() => collectDomains(notes), [notes]);
+
   // Фильтрация заметок
   const filteredNotes = useMemo(() => {
     let result = notes;
@@ -51,20 +64,6 @@ export function GraphPage() {
     return result;
   }, [notes, settings.filters]);
   
-  // Цвета для типов нод
-  const getNodeColor = (type: string): string => {
-    const colors: Record<string, string> = {
-      person: '#3b82f6',    // Синий
-      work: '#8b5cf6',      // Фиолетовый
-      concept: '#10b981',   // Зеленый
-      time: '#f59e0b',      // Оранжевый
-      place: '#ef4444',     // Красный
-      hub: '#9ca3af',       // Серый
-      note: '#6b7280',      // Серый
-    };
-    return colors[type] || '#6b7280';
-  };
-
   // Строим граф из заметок
   const graphData = useMemo(() => {
     const nodes = filteredNotes.map(note => ({
@@ -72,16 +71,18 @@ export function GraphPage() {
       title: note.title,
       type: note.type || 'note',
       domain: note.domain || [],
-      color: getNodeColor(note.type || 'note'),
+      color: getNodeColor(note.type),
     }));
-    
+
+    // Индекс по названию: иначе на каждую ссылку идёт линейный поиск по всем заметкам
+    const byTitle = new Map(filteredNotes.map(note => [normalizeTitle(note.title), note]));
+
     const links: Array<{ source: string; target: string }> = [];
-    
+
     filteredNotes.forEach(note => {
       note.links.forEach(linkTitle => {
-        // Ищем заметку по title
-        const targetNote = filteredNotes.find(n => n.title === linkTitle);
-        if (targetNote) {
+        const targetNote = byTitle.get(normalizeTitle(linkTitle));
+        if (targetNote && targetNote.id !== note.id) {
           links.push({
             source: note.id,
             target: targetNote.id,
@@ -182,6 +183,8 @@ export function GraphPage() {
       <GraphSettingsPanel
         settings={settings}
         onSettingsChange={setSettings}
+        availableTypes={availableTypes}
+        availableDomains={availableDomains}
       />
       
       {/* Граф */}

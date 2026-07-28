@@ -1,131 +1,96 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, X, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { ArcheNote } from '@/arche/types';
+import { NOTE_TYPE_META, NOTE_TYPES_ORDERED, domainLabel } from '@/arche/noteTypes';
+import { collectDomains, collectTypes, hasActiveFilters, EMPTY_FILTERS, type NoteFilters } from '@/arche/search';
+
+interface FilterChipProps {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+/** Настоящая кнопка с aria-pressed: чипы фильтров должны быть доступны с клавиатуры */
+function FilterChip({ selected, onClick, children }: FilterChipProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={cn(
+        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors',
+        selected
+          ? 'border-transparent bg-primary text-primary-foreground'
+          : 'text-muted-foreground hover:text-foreground hover:border-foreground/30'
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 interface SearchAndFilterProps {
   notes: ArcheNote[];
-  onFilteredNotesChange: (filtered: ArcheNote[]) => void;
+  filters: NoteFilters;
+  onFiltersChange: (filters: NoteFilters) => void;
+  /** Сколько заметок осталось после фильтрации — считает родитель */
+  resultCount: number;
   className?: string;
 }
 
-export function SearchAndFilter({ notes, onFilteredNotesChange, className }: SearchAndFilterProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
-  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set());
+/**
+ * Контролируемый компонент: фильтры живут у родителя.
+ * Раньше он держал состояние сам и «поднимал» результат наверх через useEffect —
+ * лишний рендер-цикл и источник рассинхрона.
+ */
+export function SearchAndFilter({
+  notes,
+  filters,
+  onFiltersChange,
+  resultCount,
+  className,
+}: SearchAndFilterProps) {
   const [showFilters, setShowFilters] = useState(false);
 
-  // Получаем уникальные типы и домены
   const availableTypes = useMemo(() => {
-    const types = new Set<string>();
-    notes.forEach(note => {
-      if (note.type) types.add(note.type);
-    });
-    return Array.from(types).sort();
+    const present = new Set(collectTypes(notes));
+    return NOTE_TYPES_ORDERED.filter((type) => present.has(type));
   }, [notes]);
 
-  const availableDomains = useMemo(() => {
-    const domains = new Set<string>();
-    notes.forEach(note => {
-      if (note.domain && note.domain.length > 0) {
-        note.domain.forEach(d => domains.add(d));
-      }
+  const availableDomains = useMemo(() => collectDomains(notes), [notes]);
+
+  const toggle = (key: 'types' | 'domains', value: string) => {
+    const current = filters[key];
+    onFiltersChange({
+      ...filters,
+      [key]: current.includes(value) ? current.filter((v) => v !== value) : [...current, value],
     });
-    return Array.from(domains).sort();
-  }, [notes]);
-
-  // Фильтрация заметок
-  const filteredNotes = useMemo(() => {
-    let result = notes;
-
-    // Поиск по тексту
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter(note => {
-        const titleMatch = note.title.toLowerCase().includes(query);
-        const textMatch = note.plainText?.toLowerCase().includes(query);
-        const domainMatch = note.domain?.some(d => d.toLowerCase().includes(query));
-        return titleMatch || textMatch || domainMatch;
-      });
-    }
-
-    // Фильтр по типам
-    if (selectedTypes.size > 0) {
-      result = result.filter(note => note.type && selectedTypes.has(note.type));
-    }
-
-    // Фильтр по доменам
-    if (selectedDomains.size > 0) {
-      result = result.filter(note => {
-        if (!note.domain || note.domain.length === 0) return false;
-        return note.domain.some(d => selectedDomains.has(d));
-      });
-    }
-
-    return result;
-  }, [notes, searchQuery, selectedTypes, selectedDomains]);
-
-  // Уведомляем родителя об изменении отфильтрованных заметок
-  useEffect(() => {
-    onFilteredNotesChange(filteredNotes);
-  }, [filteredNotes, onFilteredNotesChange]);
-
-  const toggleType = (type: string) => {
-    const newSet = new Set(selectedTypes);
-    if (newSet.has(type)) {
-      newSet.delete(type);
-    } else {
-      newSet.add(type);
-    }
-    setSelectedTypes(newSet);
   };
 
-  const toggleDomain = (domain: string) => {
-    const newSet = new Set(selectedDomains);
-    if (newSet.has(domain)) {
-      newSet.delete(domain);
-    } else {
-      newSet.add(domain);
-    }
-    setSelectedDomains(newSet);
-  };
-
-  const clearFilters = () => {
-    setSearchQuery('');
-    setSelectedTypes(new Set());
-    setSelectedDomains(new Set());
-  };
-
-  const hasActiveFilters = searchQuery.trim() || selectedTypes.size > 0 || selectedDomains.size > 0;
-
-  const typeLabels: Record<string, string> = {
-    hub: 'Хабы',
-    time: 'Эпохи',
-    concept: 'Концепции',
-    person: 'Персоны',
-    work: 'Работы',
-    place: 'Места',
-    note: 'Заметки',
-  };
+  const active = hasActiveFilters(filters);
 
   return (
     <div className={cn('space-y-4', className)}>
       {/* Поиск */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
         <Input
-          type="text"
+          type="search"
           placeholder="Поиск по названию, тексту или домену..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Поиск по заметкам"
+          value={filters.query}
+          onChange={(e) => onFiltersChange({ ...filters, query: e.target.value })}
           className="pl-10 pr-10"
         />
-        {searchQuery && (
+        {filters.query && (
           <button
-            onClick={() => setSearchQuery('')}
+            type="button"
+            onClick={() => onFiltersChange({ ...filters, query: '' })}
+            aria-label="Очистить поиск"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
@@ -139,75 +104,74 @@ export function SearchAndFilter({ notes, onFilteredNotesChange, className }: Sea
           variant="outline"
           size="sm"
           onClick={() => setShowFilters(!showFilters)}
+          aria-expanded={showFilters}
           className="w-full"
         >
-          <Filter className="h-4 w-4 mr-2" />
+          <Filter className="h-4 w-4 mr-2" aria-hidden />
           Фильтры
-          {hasActiveFilters && (
+          {active && (
             <Badge variant="secondary" className="ml-2">
-              {selectedTypes.size + selectedDomains.size}
+              {filters.types.length + filters.domains.length}
             </Badge>
           )}
         </Button>
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="ml-2"
-          >
+        {active && (
+          <Button variant="ghost" size="sm" onClick={() => onFiltersChange(EMPTY_FILTERS)} className="ml-2">
             Сбросить
           </Button>
         )}
       </div>
 
       {/* Панель фильтров */}
-      <div className={cn(
-        'space-y-4 border rounded-lg p-4 bg-card',
-        showFilters ? 'block' : 'hidden md:block'
-      )}>
-        {/* Типы */}
+      <div className={cn('space-y-4 border rounded-lg p-4 bg-card', showFilters ? 'block' : 'hidden md:block')}>
         <div>
           <h3 className="text-sm font-medium mb-2">Типы</h3>
           <div className="flex flex-wrap gap-2">
-            {availableTypes.map(type => (
-              <Badge
+            {availableTypes.map((type) => (
+              <FilterChip
                 key={type}
-                variant={selectedTypes.has(type) ? 'default' : 'outline'}
-                className="cursor-pointer"
-                onClick={() => toggleType(type)}
+                selected={filters.types.includes(type)}
+                onClick={() => toggle('types', type)}
               >
-                {typeLabels[type] || type}
-              </Badge>
+                {NOTE_TYPE_META[type].pluralLabel}
+              </FilterChip>
             ))}
           </div>
         </div>
 
-        {/* Домены */}
         {availableDomains.length > 0 && (
           <div>
             <h3 className="text-sm font-medium mb-2">Домены</h3>
             <div className="flex flex-wrap gap-2">
-              {availableDomains.map(domain => (
-                <Badge
+              {availableDomains.map((domain) => (
+                <FilterChip
                   key={domain}
-                  variant={selectedDomains.has(domain) ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                  onClick={() => toggleDomain(domain)}
+                  selected={filters.domains.includes(domain)}
+                  onClick={() => toggle('domains', domain)}
                 >
-                  {domain}
-                </Badge>
+                  {domainLabel(domain)}
+                </FilterChip>
               ))}
             </div>
           </div>
         )}
 
-        {/* Результаты */}
-        <div className="pt-2 border-t text-sm text-muted-foreground">
-          Найдено: {filteredNotes.length} из {notes.length}
+        <div className="pt-2 border-t text-sm text-muted-foreground flex items-center justify-between gap-3">
+          <span aria-live="polite">
+            Найдено: {resultCount} из {notes.length}
+          </span>
+          {active && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onFiltersChange(EMPTY_FILTERS)}
+              className="hidden md:inline-flex"
+            >
+              Сбросить
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
 }
-

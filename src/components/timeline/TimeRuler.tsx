@@ -23,11 +23,12 @@ import {
   filterByLOD,
 } from './utils';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
-import { clampScrollYear, ScrollClampParams, getMinScrollYear, getMaxScrollYear } from './utils/scrollClamp';
+import { clampScrollYear, ScrollClampParams } from './utils/scrollClamp';
 import { yearToScreenX } from './core/projection';
 import { RowKey } from './utils/rowTypes';
 import { findPreviousNoteInRow, findNextNoteInRow } from './utils/rowNavigation';
-import { CAMERA_LIMITS } from '@/arche/graph/cameraLimits';
+import { NOTE_TYPES_ORDERED } from '@/arche/noteTypes';
+import { collectDomains, collectTypes } from '@/arche/search';
 
 const DEFAULT_EPOCHS: Epoch[] = [
   { name: 'Античность', startYear: -800, endYear: 500 },
@@ -78,7 +79,15 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
   const timelineNotes = useMemo(() => {
     return enrichAllNotes(notes);
   }, [notes]);
-  
+
+  // Фильтры показывают только то, что реально есть на таймлайне
+  const availableTypes = useMemo(() => {
+    const present = new Set(collectTypes(timelineNotes));
+    return NOTE_TYPES_ORDERED.filter((type) => present.has(type)) as string[];
+  }, [timelineNotes]);
+
+  const availableDomains = useMemo(() => collectDomains(timelineNotes), [timelineNotes]);
+
   // Фильтрация по типам и доменам
   const filteredNotes = useMemo(() => {
     let result = timelineNotes;
@@ -324,30 +333,6 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
     updateURL(scrollYear, zoomLevel);
   }, [scrollYear, zoomLevel, updateURL]);
 
-  // Dev-log для отладки camera limits (только в dev режиме)
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      const minAllowed = getMinScrollYear(scrollClampParams);
-      const maxAllowed = getMaxScrollYear(scrollClampParams);
-      const isNearMin = Math.abs(scrollYear - minAllowed) < 10;
-      const isNearMax = Math.abs(scrollYear - maxAllowed) < 10;
-      
-      if (isNearMin || isNearMax) {
-        console.log('[Camera Debug]', {
-          scrollYear: Math.round(scrollYear),
-          minAllowed: Math.round(minAllowed),
-          maxAllowed: Math.round(maxAllowed),
-          hardLimits: {
-            min: CAMERA_LIMITS.minYearHard,
-            max: CAMERA_LIMITS.maxYearHard,
-          },
-          overscroll: CAMERA_LIMITS.overscrollYears,
-          nearEdge: isNearMin ? 'min' : isNearMax ? 'max' : null,
-        });
-      }
-    }
-  }, [scrollYear, scrollClampParams]);
-  
   // Клик по карточке (с защитой от случайных срабатываний при drag)
   const handleCardClick = useCallback((noteId: string) => {
     // Игнорируем клик, если был drag
@@ -474,6 +459,8 @@ export function TimeRuler({ onNoteClick }: TimeRulerProps) {
           onFiltersChange={setFilters}
           zoomLevel={zoomLevel}
           onZoomChange={setZoomLevel}
+          availableTypes={availableTypes}
+          availableDomains={availableDomains}
         />
       </div>
       
