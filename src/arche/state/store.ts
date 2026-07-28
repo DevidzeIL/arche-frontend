@@ -68,28 +68,12 @@ export const useArcheStore = create<ArcheStore>()(
         set({ notes, notesById, notesByTitle, loaded: true });
       },
 
+      // Запись в localStorage делает zustand persist; здесь только состояние.
+      // Класс на <html> вешает единственный эффект в App.
       setTheme: (theme) => {
         set((state) => ({
           settings: { ...state.settings, theme },
         }));
-        // Применяем тему к DOM немедленно
-        if (typeof document !== 'undefined') {
-          document.documentElement.classList.remove('light', 'dark');
-          document.documentElement.classList.add(theme);
-          // Также сохраняем в localStorage для быстрого доступа
-          try {
-            const stored = localStorage.getItem('arche-storage');
-            if (stored) {
-              const parsed = JSON.parse(stored);
-              parsed.state = parsed.state || {};
-              parsed.state.settings = parsed.state.settings || {};
-              parsed.state.settings.theme = theme;
-              localStorage.setItem('arche-storage', JSON.stringify(parsed));
-            }
-                } catch {
-                  // Failed to update theme in storage - skip silently
-                }
-        }
       },
 
       setSidebarOpen: (open) => {

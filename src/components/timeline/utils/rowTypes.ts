@@ -4,7 +4,7 @@
 
 import { TimelineNote } from '../types';
 
-export type RowKey = 'person' | 'work' | 'concept' | 'event' | 'place' | 'hub' | 'note';
+export type RowKey = 'person' | 'work' | 'concept' | 'culture' | 'event' | 'place' | 'hub' | 'note';
 
 export interface RowConfig {
   key: RowKey;
@@ -13,81 +13,52 @@ export interface RowConfig {
   order: number; // порядок отображения (сверху вниз)
 }
 
+const ROW_HEIGHT = 220;
+
 /**
- * Порядок строк (сверху вниз)
- * КРИТИЧНО: 'note' временно скрыта из отображения
+ * Порядок строк (сверху вниз).
+ * Строка показывается, только если в неё что-то попало (см. RowsLayer),
+ * поэтому скрывать типы отсюда не нужно — иначе заметки этого типа
+ * пропадают с таймлайна без единого следа.
  */
 export const ROW_ORDER: RowKey[] = [
   'hub',
   'person',
   'work',
   'concept',
+  'culture',
   'event',
   'place',
-  // 'note', // Скрыта из отображения
+  'note',
 ];
 
 /**
  * Конфигурация строк
  */
 export const ROW_CONFIGS: Record<RowKey, RowConfig> = {
-  hub: {
-    key: 'hub',
-    label: 'Периоды',
-    height: 220,
-    order: 0,
-  },
-  person: {
-    key: 'person',
-    label: 'Персоны',
-    height: 220,
-    order: 1,
-  },
-  work: {
-    key: 'work',
-    label: 'Работы',
-    height: 220,
-    order: 2,
-  },
-  concept: {
-    key: 'concept',
-    label: 'Концепции',
-    height: 220,
-    order: 3,
-  },
-  event: {
-    key: 'event',
-    label: 'События',
-    height: 220,
-    order: 4,
-  },
-  place: {
-    key: 'place',
-    label: 'Места',
-    height: 220,
-    order: 5,
-  },
-  note: {
-    key: 'note',
-    label: 'Заметки',
-    height: 220,
-    order: 6,
-  },
+  hub: { key: 'hub', label: 'Периоды', height: ROW_HEIGHT, order: 0 },
+  person: { key: 'person', label: 'Персоны', height: ROW_HEIGHT, order: 1 },
+  work: { key: 'work', label: 'Работы', height: ROW_HEIGHT, order: 2 },
+  concept: { key: 'concept', label: 'Концепции', height: ROW_HEIGHT, order: 3 },
+  culture: { key: 'culture', label: 'Течения', height: ROW_HEIGHT, order: 4 },
+  event: { key: 'event', label: 'События', height: ROW_HEIGHT, order: 5 },
+  place: { key: 'place', label: 'Места', height: ROW_HEIGHT, order: 6 },
+  note: { key: 'note', label: 'Заметки', height: ROW_HEIGHT, order: 7 },
 };
 
 /**
  * Маппинг типа заметки в ключ строки
  */
 export function getRowKeyForNote(note: TimelineNote): RowKey {
-  const type = note.type || 'note';
-  
-  switch (type) {
+  switch (note.type) {
     case 'person':
       return 'person';
     case 'work':
       return 'work';
     case 'concept':
       return 'concept';
+    case 'culture':
+      return 'culture';
     case 'event':
       return 'event';
     case 'place':
@@ -109,6 +80,7 @@ export function groupNotesByRow(notes: TimelineNote[]): Record<RowKey, TimelineN
     person: [],
     work: [],
     concept: [],
+    culture: [],
     event: [],
     place: [],
     hub: [],

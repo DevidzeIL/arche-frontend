@@ -1,5 +1,5 @@
 import matter from 'gray-matter';
-import type { ArcheNote } from '../types';
+import type { ArcheNote, NoteTimeSpan } from '../types';
 
 // Игнорируемые папки
 export const EXCLUDED_FOLDERS = ['_rules', '_templates'];
@@ -59,6 +59,58 @@ export function markdownToPlainText(markdown: string): string {
     .replace(/^\s*!?[^\s]+\.(png|jpg|jpeg|gif|webp|svg)\s*/gim, '') // Убираем названия файлов изображений в начале строки
     .replace(/\n+/g, ' ') // Множественные переносы -> пробел
     .trim();
+}
+
+const PRECISIONS = ['exact', 'approximate', 'century'] as const;
+
+/**
+ * Читает явный временной интервал из frontmatter.
+ *
+ * Поддерживаются плоские поля (удобно редактировать в Obsidian):
+ *   start_year: -428
+ *   end_year: -348
+ *   display_year: -428
+ *   year_precision: exact | approximate | century
+ *
+ * и вложенная форма для обратной совместимости:
+ *   timeline:
+ *     start_year: -428
+ */
+export function parseTimeSpan(frontmatter: Record<string, unknown>): NoteTimeSpan | undefined {
+  const nested =
+    frontmatter.timeline && typeof frontmatter.timeline === 'object'
+      ? (frontmatter.timeline as Record<string, unknown>)
+      : {};
+
+  const readYear = (...keys: string[]): number | undefined => {
+    for (const key of keys) {
+      const raw = frontmatter[key] ?? nested[key];
+      if (raw === undefined || raw === null || raw === '') continue;
+      const value = typeof raw === 'number' ? raw : Number(String(raw).trim());
+      if (Number.isFinite(value)) return value;
+    }
+    return undefined;
+  };
+
+  const startYear = readYear('start_year', 'startYear');
+  if (startYear === undefined) return undefined;
+
+  let endYear = readYear('end_year', 'endYear');
+  // Перевёрнутый интервал — данные явно ошибочны, разворачиваем вместо тихой поломки раскладки
+  let normalizedStart = startYear;
+  if (endYear !== undefined && endYear < normalizedStart) {
+    [normalizedStart, endYear] = [endYear, normalizedStart];
+  }
+
+  const rawPrecision = frontmatter.year_precision ?? nested.precision;
+  const precision = PRECISIONS.find((p) => p === String(rawPrecision ?? '').trim());
+
+  return {
+    startYear: normalizedStart,
+    endYear,
+    displayYear: readYear('display_year', 'displayYear'),
+    precision,
+  };
 }
 
 // Парсинг одного файла
@@ -130,6 +182,7 @@ export function parseNote(
       body,
       plainText,
       links,
+      timeSpan: parseTimeSpan(frontmatter),
     };
   } catch (error) {
     // Error parsing note - skip silently

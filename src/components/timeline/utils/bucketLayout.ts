@@ -136,6 +136,7 @@ function getTypePriority(type?: string): number {
     hub: 10,
     time: 9,
     concept: 7,
+    culture: 6,
     person: 5,
     work: 3,
     event: 3,

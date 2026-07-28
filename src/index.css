@@ -2,52 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Museum/Gallery Design System */
+/**
+ * Museum/Gallery Design System
+ *
+ * КРИТИЧНО: все переменные хранят ПОЛНОЕ значение цвета (oklch(...)), а не компоненты.
+ * tailwind.config.js подставляет их как `var(--x)` напрямую, поэтому формат вида
+ * `0 0% 100%` даёт невалидное объявление и браузер молча его выбрасывает.
+ */
 @layer base {
   :root {
-    /* Color System (HSL) - Light Theme */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 10%;
-    --card: 0 0% 98%;
-    --card-foreground: 0 0% 10%;
-    --popover: 0 0% 98%;
-    --popover-foreground: 0 0% 10%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 10%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 94%;
-    --accent-foreground: 0 0% 10%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 217 91% 60%;
+    /* Light: тёплая бумага галереи */
+    --background: oklch(0.985 0.003 85);
+    --foreground: oklch(0.18 0.006 85);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.18 0.006 85);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.18 0.006 85);
+    --primary: oklch(0.22 0.008 85);
+    --primary-foreground: oklch(0.985 0.003 85);
+    --secondary: oklch(0.95 0.004 85);
+    --secondary-foreground: oklch(0.22 0.008 85);
+    --muted: oklch(0.95 0.004 85);
+    --muted-foreground: oklch(0.47 0.006 85);
+    --accent: oklch(0.93 0.005 85);
+    --accent-foreground: oklch(0.18 0.006 85);
+    --destructive: oklch(0.52 0.19 25);
+    --destructive-foreground: oklch(0.98 0 0);
+    --border: oklch(0.18 0.006 85 / 0.14);
+    --input: oklch(0.18 0.006 85 / 0.14);
+    --ring: oklch(0.18 0.006 85 / 0.35);
     --radius: 0.5rem;
-    
-    /* Sidebar */
-    --sidebar-background: oklch(0.10 0 0);
-    --sidebar-foreground: oklch(0.85 0 0);
-    --sidebar-primary: oklch(0.95 0 0);
-    --sidebar-primary-foreground: oklch(0.08 0 0);
-    --sidebar-accent: oklch(0.15 0 0);
-    --sidebar-accent-foreground: oklch(0.95 0 0);
-    --sidebar-border: oklch(0.20 0 0 / 0.3);
-    --sidebar-ring: oklch(0.95 0 0 / 0.2);
-    
-    /* Типы заметок (минимальные акценты) */
-    --type-person: oklch(0.75 0.05 240); /* Мягкий синий */
-    --type-concept: oklch(0.70 0.05 150); /* Мягкий зеленый */
-    --type-work: oklch(0.75 0.05 280); /* Мягкий фиолетовый */
-    --type-time: oklch(0.70 0.05 50); /* Мягкий оранжевый */
-    --type-place: oklch(0.65 0.05 15); /* Мягкий красный */
-    --type-note: oklch(0.60 0 0); /* Серый */
+
+    /* Типы заметок (минимальные акценты, читаемые на светлом) */
+    --type-person: oklch(0.50 0.10 240);
+    --type-concept: oklch(0.46 0.09 150);
+    --type-work: oklch(0.48 0.11 300);
+    --type-time: oklch(0.50 0.10 60);
+    --type-culture: oklch(0.50 0.10 20);
+    --type-place: oklch(0.48 0.12 15);
+    --type-note: oklch(0.45 0 0);
   }
-  
+
   .dark {
-    /* В dark режиме используем те же значения (уже музейный стиль) */
+    /* Dark: чёрный/графит — базовый музейный режим */
     --background: oklch(0.08 0 0);
     --foreground: oklch(0.95 0 0);
     --card: oklch(0.12 0 0);
@@ -64,9 +61,17 @@
     --accent-foreground: oklch(0.95 0 0);
     --destructive: oklch(0.65 0.15 25);
     --destructive-foreground: oklch(0.95 0 0);
-    --border: oklch(0.20 0 0 / 0.3);
-    --input: oklch(0.15 0 0);
-    --ring: oklch(0.95 0 0 / 0.2);
+    --border: oklch(0.95 0 0 / 0.14);
+    --input: oklch(0.95 0 0 / 0.14);
+    --ring: oklch(0.95 0 0 / 0.35);
+
+    --type-person: oklch(0.75 0.05 240);
+    --type-concept: oklch(0.70 0.05 150);
+    --type-work: oklch(0.75 0.05 300);
+    --type-time: oklch(0.72 0.05 60);
+    --type-culture: oklch(0.72 0.05 20);
+    --type-place: oklch(0.68 0.06 15);
+    --type-note: oklch(0.60 0 0);
   }
 }
 
@@ -74,7 +79,7 @@
   * {
     @apply border-border;
   }
-  
+
   html, body {
     @apply bg-background text-foreground;
     height: 100%;
@@ -85,13 +90,15 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
+
   #root {
     height: 100vh;
+    /* dvh учитывает сворачивающуюся адресную строку на мобильных */
+    height: 100dvh;
     overflow: hidden;
     position: relative;
   }
-  
+
   /* Зерно (grain texture) - опционально, можно включить через класс */
   .grain::before {
     content: '';
@@ -105,38 +112,39 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     z-index: 9999;
   }
-  
+
   /* Serif для заголовков */
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Georgia', 'Times New Roman', 'Times', serif;
     font-weight: 400;
     letter-spacing: -0.02em;
   }
-  
+
   h1 {
     font-size: 3.5rem;
     line-height: 1.1;
     font-weight: 300;
   }
-  
+
   h2 {
     font-size: 2.5rem;
     line-height: 1.2;
   }
-  
+
   h3 {
     font-size: 1.875rem;
     line-height: 1.3;
+  }
+
+  /* Видимый фокус для навигации с клавиатуры */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }
 
 /* Стили для markdown */
 @layer base {
-  .prose {
-    @apply text-foreground;
-  }
-  
-  /* Простые цвета для текста */
   .prose,
   .prose p,
   .prose li,
@@ -148,17 +156,13 @@
   .prose h4,
   .prose h5,
   .prose h6 {
-    color: hsl(var(--foreground));
+    color: var(--foreground);
   }
-  
+
   .prose a {
-    color: hsl(var(--primary));
+    color: var(--primary);
   }
-  
-  .prose code {
-    color: hsl(var(--foreground));
-    background: hsl(var(--muted));
-  }
+
   .prose h1 {
     @apply text-3xl font-bold mt-8 mb-4;
   }
@@ -185,6 +189,7 @@
   }
   .prose code {
     @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+    color: var(--foreground);
   }
   .prose pre {
     @apply bg-muted p-4 rounded-lg overflow-x-auto mb-4;

@@ -2,6 +2,7 @@ import { FilterState, ZoomLevel } from './types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { NOTE_TYPES_ORDERED, NOTE_TYPE_META } from '@/arche/noteTypes';
 
 interface TimelineFiltersProps {
   filters: FilterState;
@@ -11,16 +12,10 @@ interface TimelineFiltersProps {
   className?: string;
 }
 
-const TYPE_OPTIONS = [
-  { value: 'hub', label: 'Хабы' },
-  { value: 'time', label: 'Эпохи' },
-  { value: 'concept', label: 'Концепции' },
-  { value: 'person', label: 'Персоны' },
-  { value: 'work', label: 'Работы' },
-  { value: 'place', label: 'Места' },
-  { value: 'event', label: 'События' },
-  { value: 'note', label: 'Заметки' },
-];
+const TYPE_OPTIONS = NOTE_TYPES_ORDERED.filter((type) => type !== 'note').map((type) => ({
+  value: type,
+  label: NOTE_TYPE_META[type].pluralLabel,
+}));
 
 const DOMAIN_OPTIONS = [
   { value: 'philosophy', label: 'Философия' },

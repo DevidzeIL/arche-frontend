@@ -1,3 +1,15 @@
+/**
+ * Явный временной интервал заметки, заданный во frontmatter.
+ * Единственный надёжный источник дат — текст разбирается только как фолбэк.
+ */
+export interface NoteTimeSpan {
+  startYear: number;
+  endYear?: number;
+  /** Год, в котором заметка стоит на таймлайне. Если не задан — выводится из типа. */
+  displayYear?: number;
+  precision?: 'exact' | 'approximate' | 'century';
+}
+
 export interface ArcheNote {
   id: string;
   path: string;
@@ -13,6 +25,7 @@ export interface ArcheNote {
   body: string; // markdown без frontmatter
   plainText: string; // для поиска
   links: string[]; // все [[wikilinks]] из тела
+  timeSpan?: NoteTimeSpan; // явные даты из frontmatter
 }
 
 export interface NoteLink {
