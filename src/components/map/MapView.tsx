@@ -7,10 +7,10 @@ import { RELATION_KINDS, RELATION_META, type RelationKind } from '@/arche/relati
 import { NOTE_TYPES_ORDERED } from '@/arche/noteTypes';
 import { collectDomains, collectTypes } from '@/arche/search';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { MapCanvas } from './MapCanvas';
 import { MapLegend } from './MapLegend';
-import { WhyPanel } from './WhyPanel';
+import { WhyPanel, PANEL_DEFAULT_WIDTH } from './WhyPanel';
+import { NodeHoverCard } from './NodeHoverCard';
 import {
   computeMapLayout,
   laneByType,
@@ -32,7 +32,8 @@ export function MapView({ onOpenNote }: MapViewProps) {
 
   const [camera, setCamera] = useState<Camera>({ centerYear: 800, pxPerYear: 0.5 });
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_WIDTH);
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('focus'));
   const [pathFromId, setPathFromId] = useState<string | null>(null);
   const [activeKinds, setActiveKinds] = useState<Set<RelationKind>>(DEFAULT_KINDS);
@@ -136,9 +137,9 @@ export function MapView({ onOpenNote }: MapViewProps) {
         if (activeKinds.has(step.edge.kind)) unique.set(step.edge.id, step.edge);
       });
       edges = [...unique.values()];
-    } else if (hoveredId) {
-      const neighbours = graph.adjacent.get(hoveredId) ?? [];
-      const lit = new Set<string>([hoveredId]);
+    } else if (hovered) {
+      const neighbours = graph.adjacent.get(hovered.id) ?? [];
+      const lit = new Set<string>([hovered.id]);
       neighbours.forEach((e) => {
         lit.add(e.sourceId);
         lit.add(e.targetId);
@@ -147,8 +148,15 @@ export function MapView({ onOpenNote }: MapViewProps) {
       edges = neighbours.filter((e) => activeKinds.has(e.kind));
     }
 
-    return { focusedId: selectedId, hoveredId, spotlight, edges, pathEdges, pathEndpoints };
-  }, [graph, selectedId, hoveredId, genealogy, path, pathFromId, activeKinds]);
+    return {
+      focusedId: selectedId,
+      hoveredId: hovered?.id ?? null,
+      spotlight,
+      edges,
+      pathEdges,
+      pathEndpoints,
+    };
+  }, [graph, selectedId, hovered, genealogy, path, pathFromId, activeKinds]);
 
   // Выбранный узел живёт в URL — ссылкой можно поделиться
   useEffect(() => {
@@ -205,16 +213,16 @@ export function MapView({ onOpenNote }: MapViewProps) {
   const toggleInList = (list: string[], value: string): string[] =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
-  const hoveredNode = hoveredId ? graph.nodeById.get(hoveredId) : null;
+  const hoveredNode = hovered ? graph.nodeById.get(hovered.id) : null;
+  // При развёрнутой на весь экран панели канвас не нужен вовсе
+  const canvasHidden = selectedId !== null && !Number.isFinite(panelWidth);
 
   return (
     <div className="relative h-full w-full bg-background">
       {/* Освобождаем место под панель, чтобы выбранный узел не оказался за ней */}
       <div
-        className={cn(
-          'absolute inset-y-0 left-0 transition-[right] duration-200',
-          selectedId ? 'right-0 sm:right-[360px]' : 'right-0'
-        )}
+        className="absolute inset-y-0 left-0"
+        style={{ right: selectedId ? (Number.isFinite(panelWidth) ? panelWidth : '100%') : 0 }}
       >
         <MapCanvas
           layout={layout}
@@ -222,23 +230,15 @@ export function MapView({ onOpenNote }: MapViewProps) {
           onCameraChange={setCamera}
           epochs={epochs}
           visual={visual}
-          onHover={setHoveredId}
+          onHover={(id, position) => setHovered(id && position ? { id, ...position } : null)}
           onSelect={handleSelect}
           onOpen={onOpenNote}
           onViewportChange={setViewport}
         />
       </div>
 
-      {/* Подсказка при наведении: короткая суть, без ухода со страницы */}
-      {hoveredNode && hoveredNode.id !== selectedId && (
-        <div className="pointer-events-none absolute left-1/2 top-3 z-20 max-w-md -translate-x-1/2 rounded-lg border border-border/60 bg-card/95 px-3 py-2 backdrop-blur-sm">
-          <p className="font-serif text-sm">{hoveredNode.title}</p>
-          {hoveredNode.note.plainText && (
-            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-              {hoveredNode.note.plainText.slice(0, 160)}
-            </p>
-          )}
-        </div>
+      {hovered && hoveredNode && hoveredNode.id !== selectedId && (
+        <NodeHoverCard graph={graph} node={hoveredNode} position={hovered} />
       )}
 
       {/* Управление держим внизу справа: сверху идут подписи эпох, нарисованные на канвасе */}
@@ -258,6 +258,7 @@ export function MapView({ onOpenNote }: MapViewProps) {
         </div>
       )}
 
+      {!canvasHidden && (
       <MapLegend
         activeKinds={activeKinds}
         onToggleKind={toggleKind}
@@ -273,9 +274,11 @@ export function MapView({ onOpenNote }: MapViewProps) {
           setActiveDomains([]);
         }}
       />
+      )}
 
       {selectedId && genealogy && (
         <WhyPanel
+          onWidthChange={setPanelWidth}
           graph={graph}
           nodeId={selectedId}
           genealogy={genealogy}

@@ -127,6 +127,7 @@ export function noteTypePluralLabel(type?: string): string {
  * Списки в фильтрах строятся из реальных данных, а отсюда берётся только подпись —
  * захардкоженные перечни раньше не показывали religion, culture и education.
  */
+// Базовый набор задан в arche-vault/_rules/rules_00_meta.md
 export const DOMAIN_LABELS: Record<string, string> = {
   philosophy: 'Философия',
   history: 'История',
@@ -135,6 +136,8 @@ export const DOMAIN_LABELS: Record<string, string> = {
   science: 'Наука',
   literature: 'Литература',
   art: 'Искусство',
+  politics: 'Политика',
+  geography: 'География',
   education: 'Образование',
   psychology: 'Психология',
 };

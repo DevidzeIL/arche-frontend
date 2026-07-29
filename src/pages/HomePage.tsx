@@ -6,6 +6,8 @@ import { SearchAndFilter } from '@/components/home/SearchAndFilter';
 import { Button } from '@/components/ui/button';
 import { NOTE_TYPES_ORDERED, noteTypePluralLabel } from '@/arche/noteTypes';
 import { applyNoteFilters, hasActiveFilters, EMPTY_FILTERS, type NoteFilters } from '@/arche/search';
+import { firstImageOf } from '@/arche/images';
+import { excerptOf } from '@/arche/excerpt';
 import type { ArcheNote } from '@/arche/types';
 
 const PREVIEW_COUNT = 9;
@@ -127,16 +129,24 @@ export function HomePage() {
                         onClick={() => navigate(`/note/${note.id}`)}
                         ariaLabel={`Открыть заметку «${note.title}»`}
                       >
-                        <div className="space-y-2 sm:space-y-3">
-                          <div className="flex items-start justify-between gap-2 sm:gap-3">
-                            <h3 className="text-lg sm:text-xl font-serif flex-1">{note.title}</h3>
-                            <TypeBadge type={note.type} />
-                          </div>
-                          {note.plainText && (
-                            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3">
-                              {note.plainText.substring(0, 200)}
-                            </p>
+                        <div className="flex gap-3 sm:gap-4">
+                          {firstImageOf(note.body) && (
+                            <img
+                              src={firstImageOf(note.body)!}
+                              alt=""
+                              loading="lazy"
+                              className="h-16 w-16 shrink-0 rounded-md object-cover sm:h-20 sm:w-20"
+                            />
                           )}
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex items-start justify-between gap-2 sm:gap-3">
+                              <h3 className="flex-1 font-serif text-lg sm:text-xl">{note.title}</h3>
+                              <TypeBadge type={note.type} />
+                            </div>
+                            <p className="line-clamp-3 text-sm text-muted-foreground">
+                              {excerptOf(note, 180)}
+                            </p>
+                          </div>
                         </div>
                       </MuseumCard>
                     ))}

@@ -2,77 +2,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate } from 'react-router-dom';
 import { useArcheStore } from '../state/store';
+import { resolveImage } from '../images';
 import { cn } from '@/lib/utils';
 
-// Загружаем все изображения из _imgs через import.meta.glob
-// Используем ?url для получения URL изображений
-let imageModules: Record<string, any> = {};
-
-// Вариант 1: относительно src/arche/markdown (как в parser)
-imageModules = import.meta.glob('../../arche-vault/_imgs/**/*.{png,jpg,jpeg,gif,webp,svg}?url', {
-  eager: true,
-  import: 'default',
-});
-
-// Вариант 2: если первый не сработал
-if (Object.keys(imageModules).length === 0) {
-  imageModules = import.meta.glob('../arche-vault/_imgs/**/*.{png,jpg,jpeg,gif,webp,svg}?url', {
-    eager: true,
-    import: 'default',
-  });
-}
-
-// Вариант 3: с ведущим слешем
-if (Object.keys(imageModules).length === 0) {
-  imageModules = import.meta.glob('/arche-vault/_imgs/**/*.{png,jpg,jpeg,gif,webp,svg}?url', {
-    eager: true,
-    import: 'default',
-  });
-}
-
-
-// Функция для получения URL изображения
-function getImageUrl(filename: string): string | null {
-  // Нормализуем имя файла
-  const normalizedFilename = filename.trim();
-  
-  // Нормализуем пути в imageModules (убираем префиксы как в parser)
-  const normalizedModules: Record<string, string> = {};
-  for (const [path, url] of Object.entries(imageModules)) {
-    let normalizedPath = path
-      .replace(/^\.\.\/\.\.\/arche-vault\/_imgs\//, '')
-      .replace(/^\.\.\/arche-vault\/_imgs\//, '')
-      .replace(/^\/arche-vault\/_imgs\//, '')
-      .replace(/^\.\/arche-vault\/_imgs\//, '')
-      .replace(/^arche-vault\/_imgs\//, '');
-    
-    const pathFilename = normalizedPath.split('/').pop() || normalizedPath;
-    normalizedModules[pathFilename] = url as string;
-  }
-  
-  // Ищем точное совпадение
-  if (normalizedModules[normalizedFilename]) {
-    return normalizedModules[normalizedFilename];
-  }
-  
-  // Ищем с учётом пробелов
-  for (const [pathFilename, url] of Object.entries(normalizedModules)) {
-    if (pathFilename.trim() === normalizedFilename || 
-        pathFilename.replace(/\s+/g, ' ') === normalizedFilename.replace(/\s+/g, ' ')) {
-      return url;
-    }
-  }
-  
-  // Ищем по части имени
-  for (const [pathFilename, url] of Object.entries(normalizedModules)) {
-    if (pathFilename.includes(normalizedFilename) || normalizedFilename.includes(pathFilename)) {
-      return url;
-    }
-  }
-  
-        // Image not found - skip silently
-  return null;
-}
+// Разрешение путей к картинкам вынесено в src/arche/images.ts —
+// им пользуется и карта, и этот рендер
+const getImageUrl = resolveImage;
 
 interface WikilinkButtonProps {
   title: string;

@@ -1,8 +1,7 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RootLayout } from '@/layouts/RootLayout';
 import { MapPage } from '@/pages/MapPage';
 import { NotePage } from '@/pages/NotePage';
-import { GraphPage } from '@/pages/GraphPage';
 import { HomePage } from '@/pages/HomePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ErrorPage } from '@/pages/ErrorPage';
@@ -27,8 +26,9 @@ export const router = createBrowserRouter([
         element: <NotePage />,
       },
       {
+        // Граф стал частью карты; старые ссылки на /graph ведут туда же
         path: 'graph',
-        element: <GraphPage />,
+        element: <Navigate to="/timeline" replace />,
       },
       {
         // Ловим всё остальное внутри layout — раньше неизвестный адрес давал пустой экран

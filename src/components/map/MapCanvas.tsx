@@ -20,7 +20,8 @@ interface MapCanvasProps {
   onCameraChange: (camera: Camera) => void;
   epochs: Epoch[];
   visual: MapVisualState;
-  onHover: (nodeId: string | null) => void;
+  /** Позиция нужна, чтобы показать карточку рядом с курсором, а не в углу экрана */
+  onHover: (nodeId: string | null, position: { x: number; y: number } | null) => void;
   onSelect: (nodeId: string | null) => void;
   /** Двойной клик — открыть заметку */
   onOpen: (nodeId: string) => void;
@@ -216,7 +217,8 @@ export function MapCanvas({
       return;
     }
 
-    onHover(hitTest(event.clientX, event.clientY));
+    const hit = hitTest(event.clientX, event.clientY);
+    onHover(hit, hit ? { x: event.clientX, y: event.clientY } : null);
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -242,7 +244,7 @@ export function MapCanvas({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onPointerLeave={() => onHover(null)}
+        onPointerLeave={() => onHover(null, null)}
         onDoubleClick={(event) => {
           const id = hitTest(event.clientX, event.clientY);
           if (id) onOpen(id);

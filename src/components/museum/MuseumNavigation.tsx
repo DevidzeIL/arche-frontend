@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, Clock, Network, Moon, Sun, Menu, Search } from 'lucide-react';
+import { Home, Waypoints, Moon, Sun, Menu, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useArcheStore } from '@/arche/state/store';
 import { useState } from 'react';
@@ -18,10 +18,11 @@ interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
+// Отдельная вкладка графа убрана: карта показывает те же связи,
+// но с осью времени и объяснением каждой из них
 const navigationItems: NavigationItem[] = [
   { path: '/', label: 'Главная', icon: Home },
-  { path: '/timeline', label: 'Карта', icon: Clock },
-  { path: '/graph', label: 'Граф', icon: Network },
+  { path: '/timeline', label: 'Карта', icon: Waypoints },
 ];
 
 interface MuseumNavigationProps {
@@ -95,13 +96,20 @@ export function MuseumNavigation({ onOpenSearch }: MuseumNavigationProps) {
                 onClick={onOpenSearch}
                 aria-label="Поиск по заметкам"
                 className={cn(
-                  'hidden sm:flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg border border-border/60',
+                  'hidden sm:flex items-center gap-2 h-9 pl-3 pr-1.5 rounded-lg border border-border/60 bg-background/40',
                   'text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors'
                 )}
               >
-                <Search className="h-4 w-4" aria-hidden />
-                <span>Поиск</span>
-                <kbd className="text-[10px] px-1.5 py-0.5 rounded border border-border/60">⌘K</kbd>
+                <Search className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="leading-none">Поиск</span>
+                <kbd
+                  className={cn(
+                    'ml-1 inline-flex h-5 items-center rounded border border-border/60 px-1.5',
+                    'font-sans text-[10px] leading-none text-muted-foreground'
+                  )}
+                >
+                  ⌘K
+                </kbd>
               </button>
             )}
 
