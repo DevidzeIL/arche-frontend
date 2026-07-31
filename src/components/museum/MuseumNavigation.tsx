@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, Waypoints, Moon, Sun, Menu, Search } from 'lucide-react';
+import { Home, Waypoints, GraduationCap, Mail, Moon, Sun, Menu, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useArcheStore } from '@/arche/state/store';
 import { useState } from 'react';
@@ -23,6 +23,7 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { path: '/', label: 'Главная', icon: Home },
   { path: '/timeline', label: 'Карта', icon: Waypoints },
+  { path: '/study', label: 'Учёба', icon: GraduationCap },
 ];
 
 interface MuseumNavigationProps {
@@ -113,6 +114,12 @@ export function MuseumNavigation({ onOpenSearch }: MuseumNavigationProps) {
               </button>
             )}
 
+            <Button variant="ghost" size="icon" asChild className="rounded-full">
+              <Link to="/contact" aria-label="Написать разработчику">
+                <Mail className="h-4 w-4" aria-hidden />
+              </Link>
+            </Button>
+
             <Button
               variant="ghost"
               size="icon"
@@ -184,6 +191,17 @@ export function MuseumNavigation({ onOpenSearch }: MuseumNavigationProps) {
                       </Link>
                     );
                   })}
+                  <Link
+                    to="/contact"
+                    onClick={handleNavClick}
+                    className={cn(
+                      'flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200',
+                      'text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                    )}
+                  >
+                    <Mail className="h-5 w-5" aria-hidden />
+                    <span>Написать</span>
+                  </Link>
                   <div className="pt-4 border-t border-border">
                     <button
                       onClick={toggleTheme}

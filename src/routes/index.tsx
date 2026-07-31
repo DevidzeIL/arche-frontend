@@ -3,6 +3,10 @@ import { RootLayout } from '@/layouts/RootLayout';
 import { MapPage } from '@/pages/MapPage';
 import { NotePage } from '@/pages/NotePage';
 import { HomePage } from '@/pages/HomePage';
+import { StudyPage } from '@/pages/StudyPage';
+import { ChapterPage } from '@/pages/ChapterPage';
+import { ReviewPage } from '@/pages/ReviewPage';
+import { ContactPage } from '@/pages/ContactPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ErrorPage } from '@/pages/ErrorPage';
 
@@ -24,6 +28,22 @@ export const router = createBrowserRouter([
       {
         path: 'note/:noteId',
         element: <NotePage />,
+      },
+      {
+        path: 'study',
+        element: <StudyPage />,
+      },
+      {
+        path: 'study/review',
+        element: <ReviewPage />,
+      },
+      {
+        path: 'study/:hubId/:chapterIndex',
+        element: <ChapterPage />,
+      },
+      {
+        path: 'contact',
+        element: <ContactPage />,
       },
       {
         // Граф стал частью карты; старые ссылки на /graph ведут туда же

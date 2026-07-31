@@ -2,12 +2,32 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏛️</text></svg>"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Arche Vault</title>
+    <meta
+      name="description"
+      content="Arche — личная энциклопедия философии и культуры: карта идей на оси времени, причинные связи и учёба с интервальным повторением."
+    />
+    <title>Arche — карта знаний</title>
   </head>
   <body>
     <div id="root"></div>
+
+    <!--
+      Статический двойник формы обратной связи.
+      Netlify находит формы только в HTML на этапе деплоя; SPA рендерит
+      свою форму на клиенте, поэтому здесь лежит скрытая копия с теми же
+      полями — POST со страницы /contact попадает в неё.
+    -->
+    <form name="contact" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+      <textarea name="message"></textarea>
+    </form>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
