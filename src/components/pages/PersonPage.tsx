@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { NoteConnections } from './NoteConnections';
 import { MarkdownViewer } from '@/arche/markdown/components';
+import { bodyForDisplay } from '@/arche/excerpt';
 import { ArcheNote } from '@/arche/types';
 import { PersonMetadata } from './types';
 
@@ -39,8 +40,9 @@ export function PersonPage({ note, metadata, relatedNotes }: PersonPageProps) {
   
   // Убираем изображение из body, чтобы не дублировалось
   const bodyWithoutImage = useMemo(() => {
-    let cleaned = note.body;
-    
+    // Раздел «Связи» тоже убираем: приложение показывает его содержательнее
+    let cleaned = bodyForDisplay(note);
+
     // Убираем ![[image.png]] (wikilink изображения)
     cleaned = cleaned.replace(/!\[\[[^\]]+\.(png|jpg|jpeg|gif|webp|svg)\]\]/gi, '');
     

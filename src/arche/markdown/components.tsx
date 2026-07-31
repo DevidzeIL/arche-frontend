@@ -63,32 +63,31 @@ function preprocessWikilinks(content: string): string {
     /!\[\[([^\]]+)\]\]/g,
     (_match, linkText) => {
       const [filename, alt] = linkText.split('|').map((s: string) => s.trim());
-      const imagePath = `/arche-vault/_imgs/${filename}`;
-      return `![${alt || filename}](${imagePath})`;
+      return `![${alt || filename}](${encodeURI(`/arche-vault/_imgs/${filename}`)})`;
     }
   );
-  
+
   // Затем обрабатываем изображения с wikilinks в формате markdown: ![alt](wikilink:filename)
   processed = processed.replace(
     /!\[([^\]]*)\]\(wikilink:([^\)]+)\)/g,
-    (_match, alt, filename) => {
-      // Преобразуем в путь к изображению
-      const imagePath = `/arche-vault/_imgs/${filename}`;
-      return `![${alt}](${imagePath})`;
-    }
+    (_match, alt, filename) => `![${alt}](${encodeURI(`/arche-vault/_imgs/${filename}`)})`
   );
-  
+
   // Затем обрабатываем обычные wikilinks: [[Title]] и [[Title|Alias]]
+  //
+  // КРИТИЧНО: название кодируется. Адрес markdown-ссылки не может содержать
+  // пробел — парсер обрывается и оставляет на странице сырой текст вида
+  // `[Нового времени](wikilink:Новое время)`. А многословных названий
+  // в хранилище большинство.
   processed = processed.replace(
     /\[\[([^\]]+)\]\]/g,
     (_match, linkText) => {
       const [title, alias] = linkText.split('|').map((s: string) => s.trim());
       const displayText = alias || title;
-      // Используем специальный формат, который мы распознаем в компоненте
-      return `[${displayText}](wikilink:${title})`;
+      return `[${displayText}](wikilink:${encodeURIComponent(title)})`;
     }
   );
-  
+
   return processed;
 }
 
@@ -117,7 +116,14 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
           a: ({ href, children, ...props }) => {
             // Обработка wikilinks
             if (href?.startsWith('wikilink:')) {
-              const title = href.replace('wikilink:', '');
+              const raw = href.replace('wikilink:', '');
+              // Название закодировано при препроцессинге — возвращаем как было
+              let title = raw;
+              try {
+                title = decodeURIComponent(raw);
+              } catch {
+                // Некорректная escape-последовательность — берём как есть
+              }
               return <WikilinkButton title={title} displayText={String(children)} />;
             }
             

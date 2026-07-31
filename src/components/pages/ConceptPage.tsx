@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { NoteConnections } from './NoteConnections';
 import { MarkdownViewer } from '@/arche/markdown/components';
+import { bodyForDisplay } from '@/arche/excerpt';
 import { ArcheNote } from '@/arche/types';
 import { ConceptMetadata } from './types';
 
@@ -59,7 +60,7 @@ export function ConceptPage({ note, metadata, relatedNotes }: ConceptPageProps) 
           <div className="lg:col-span-2">
             <article className="prose prose-lg max-w-none">
               <div className="text-base leading-relaxed space-y-6">
-                <MarkdownViewer content={note.body} />
+                <MarkdownViewer content={bodyForDisplay(note)} />
               </div>
             </article>
           </div>

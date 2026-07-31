@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { NoteConnections } from './NoteConnections';
 import { MarkdownViewer } from '@/arche/markdown/components';
+import { bodyForDisplay } from '@/arche/excerpt';
 import { ArcheNote } from '@/arche/types';
 import { WorkMetadata } from './types';
 import { cn } from '@/lib/utils';
@@ -179,7 +180,7 @@ export function WorkPage({ note, metadata, relatedNotes }: WorkPageProps) {
           <div className={cn("lg:order-1", !workImage && "lg:col-span-2")}>
             <article className="prose prose-lg max-w-none">
               <div className="text-base leading-relaxed space-y-6 max-w-2xl">
-                <MarkdownViewer content={note.body} />
+                <MarkdownViewer content={bodyForDisplay(note)} />
               </div>
             </article>
           </div>

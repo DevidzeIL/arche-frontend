@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { PersonPage, WorkPage, ConceptPage, TimePage } from '@/components/pages';
 import { parseMetadata } from '@/components/pages/metadataParser';
 import { MarkdownViewer } from '@/arche/markdown/components';
+import { bodyForDisplay } from '@/arche/excerpt';
 
 export function NotePage() {
   const { noteId } = useParams<{ noteId: string }>();
@@ -105,7 +106,7 @@ export function NotePage() {
 
               <div className="prose prose-lg dark:prose-invert max-w-none">
                 <div className="text-base leading-relaxed space-y-6">
-                  <MarkdownViewer content={note.body} />
+                  <MarkdownViewer content={bodyForDisplay(note)} />
                 </div>
               </div>
 
