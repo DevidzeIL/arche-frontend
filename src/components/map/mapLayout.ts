@@ -47,13 +47,13 @@ export interface MapLayout {
   contentHeight: number;
 }
 
-const ROW_HEIGHT = 26;
+const ROW_HEIGHT = 27;
 const LANE_PADDING = 12;
 /** Полоса под названия эпох поверх всей карты */
 export const EPOCH_STRIP_HEIGHT = 28;
 const LANE_HEADER = 18;
 const MAX_ROWS_PER_LANE = 5;
-const CHAR_WIDTH = 6.1; // приблизительная ширина символа при 11px
+const CHAR_WIDTH = 7.4; // приблизительная ширина символа при 13px
 const LABEL_GAP = 14;
 const MAX_LABEL_CHARS = 26;
 
@@ -110,38 +110,51 @@ export function computeMapLayout(
   for (const key of orderedKeys) {
     const laneNodes = [...(grouped.get(key) ?? [])].sort((a, b) => priority(b) - priority(a));
 
-    // Правый край занятого места в каждой подстроке
-    const rowEnds: number[] = [];
+    // Занятые интервалы по подстрокам.
+    //
+    // КРИТИЧНО: именно интервалы, а не «правый край». Узлы приходят в порядке
+    // важности, не слева направо, — и сравнение с правым краем навсегда
+    // запирало строку для всего, что левее уже поставленного. Подписи
+    // пропадали при совершенно пустой строке.
+    const rows: Array<Array<{ start: number; end: number }>> = [];
+
+    const tryPlace = (start: number, end: number): number => {
+      for (let r = 0; r < MAX_ROWS_PER_LANE; r++) {
+        const row = rows[r] ?? (rows[r] = []);
+        if (!row.some((iv) => start < iv.end && iv.start < end)) {
+          row.push({ start, end });
+          return r;
+        }
+      }
+      return -1;
+    };
+
     const placements: Array<{ node: KnowledgeNode; row: number; labeled: boolean }> = [];
 
     for (const node of laneNodes) {
       const worldX = node.time!.displayYear * pxPerYear;
+      const radius = radiusFor(node);
       const label = truncate(node.title);
-      const width = radiusFor(node) + LABEL_GAP + label.length * CHAR_WIDTH;
-      const left = worldX - radiusFor(node);
 
-      let placedRow = -1;
-      for (let row = 0; row < MAX_ROWS_PER_LANE; row++) {
-        if (rowEnds[row] === undefined || rowEnds[row] < left) {
-          rowEnds[row] = worldX + width;
-          placedRow = row;
-          break;
-        }
+      // Сначала пробуем поставить точку с подписью
+      const labelStart = worldX - radius - 4;
+      const labelEnd = worldX + radius + LABEL_GAP + label.length * CHAR_WIDTH;
+      const labeledRow = tryPlace(labelStart, labelEnd);
+      if (labeledRow >= 0) {
+        placements.push({ node, row: labeledRow, labeled: true });
+        continue;
       }
 
-      if (placedRow >= 0) {
-        placements.push({ node, row: placedRow, labeled: true });
-      } else {
-        // Места на подпись нет — узел остаётся точкой в первой строке.
-        // Так видно реальную плотность, а не усечённый список.
-        placements.push({ node, row: 0, labeled: false });
-      }
+      // Не влезла подпись — ставим хотя бы точку в свободное место,
+      // резервируя её интервал, чтобы соседние подписи не легли поверх
+      const dotRow = tryPlace(worldX - radius - 3, worldX + radius + 3);
+      placements.push({ node, row: Math.max(0, dotRow), labeled: false });
     }
 
-    const rows = Math.max(1, rowEnds.length);
-    const laneHeight = LANE_HEADER + rows * ROW_HEIGHT + LANE_PADDING;
+    const usedRows = Math.max(1, rows.length);
+    const laneHeight = LANE_HEADER + usedRows * ROW_HEIGHT + LANE_PADDING;
 
-    lanes.push({ key, label: laneLabel(key), top: cursorY, height: laneHeight, rows });
+    lanes.push({ key, label: laneLabel(key), top: cursorY, height: laneHeight, rows: usedRows });
 
     for (const { node, row, labeled } of placements) {
       const laidOutNode: LaidOutNode = {

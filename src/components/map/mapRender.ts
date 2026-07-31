@@ -108,7 +108,7 @@ export function renderMap(params: RenderParams): void {
 
 function drawEpochs({ ctx, width, height, camera, epochs, colors }: RenderParams): void {
   ctx.save();
-  ctx.font = '11px Georgia, serif';
+  ctx.font = '12px Georgia, serif';
   ctx.textBaseline = 'top';
 
   const bottom = height - AXIS_HEIGHT;
@@ -140,7 +140,7 @@ function drawEpochs({ ctx, width, height, camera, epochs, colors }: RenderParams
     const available = x2 - labelX - 8;
 
     if (available > 0 && ctx.measureText(label).width <= available) {
-      ctx.globalAlpha = 0.8;
+      ctx.globalAlpha = 0.95;
       ctx.fillStyle = colors.muted;
       ctx.fillText(label, labelX, 8);
     }
@@ -151,7 +151,7 @@ function drawEpochs({ ctx, width, height, camera, epochs, colors }: RenderParams
 
 function drawLanes({ ctx, width, height, scrollY, layout, colors }: RenderParams): void {
   ctx.save();
-  ctx.font = '10px -apple-system, Segoe UI, sans-serif';
+  ctx.font = '11px -apple-system, Segoe UI, sans-serif';
   ctx.textBaseline = 'middle';
 
   const bottom = height - AXIS_HEIGHT;
@@ -288,8 +288,11 @@ function drawNodes(params: RenderParams): void {
     // Неподписанный узел остаётся точкой — так видно настоящую плотность
     if (!item.labeled && !emphasised) continue;
 
-    ctx.font = `${emphasised ? '600 ' : ''}11px -apple-system, Segoe UI, sans-serif`;
-    ctx.fillStyle = emphasised ? colors.foreground : colors.muted;
+    // Подписи основным цветом и почти без прозрачности: приглушённый
+    // серый на тёмном фоне читался плохо
+    ctx.globalAlpha = lit ? (emphasised ? 1 : 0.92) : 0.16;
+    ctx.font = `${emphasised ? '600 ' : ''}13px -apple-system, Segoe UI, sans-serif`;
+    ctx.fillStyle = colors.foreground;
     ctx.fillText(item.label, x + item.radius + 6, y + 0.5);
   }
 
