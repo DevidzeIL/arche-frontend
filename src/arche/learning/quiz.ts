@@ -325,13 +325,20 @@ export function cardEntityExists(g: KnowledgeGraph, cardId: string): boolean {
   return edgesById(g).has(rest);
 }
 
-/** Карточки, которые пора повторить сегодня */
+/**
+ * Карточки, которые пора повторить сегодня.
+ * extraExists — проверка для карточек вне графа (авторские тесты).
+ */
 export function dueCardIds(
   g: KnowledgeGraph,
   cards: Record<string, CardState>,
+  extraExists?: (cardId: string) => boolean,
   now = new Date()
 ): string[] {
   return Object.entries(cards)
-    .filter(([id, card]) => isDue(card, now) && cardEntityExists(g, id))
+    .filter(
+      ([id, card]) =>
+        isDue(card, now) && (cardEntityExists(g, id) || Boolean(extraExists?.(id)))
+    )
     .map(([id]) => id);
 }

@@ -6,6 +6,8 @@ import { HomePage } from '@/pages/HomePage';
 import { StudyPage } from '@/pages/StudyPage';
 import { ChapterPage } from '@/pages/ChapterPage';
 import { ReviewPage } from '@/pages/ReviewPage';
+import { ExamPage } from '@/pages/ExamPage';
+import { AuthoredQuizPage } from '@/pages/AuthoredQuizPage';
 import { ContactPage } from '@/pages/ContactPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ErrorPage } from '@/pages/ErrorPage';
@@ -36,6 +38,14 @@ export const router = createBrowserRouter([
       {
         path: 'study/review',
         element: <ReviewPage />,
+      },
+      {
+        path: 'study/quiz/:noteId',
+        element: <AuthoredQuizPage />,
+      },
+      {
+        path: 'study/:hubId/exam',
+        element: <ExamPage />,
       },
       {
         path: 'study/:hubId/:chapterIndex',

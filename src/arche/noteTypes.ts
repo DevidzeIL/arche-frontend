@@ -16,6 +16,7 @@ export const NOTE_TYPES = [
   'culture',
   'event',
   'place',
+  'quiz',
   'note',
 ] as const;
 
@@ -91,12 +92,19 @@ export const NOTE_TYPE_META: Record<NoteType, NoteTypeMeta> = {
     graphColor: '#d97777',
     order: 7,
   },
+  quiz: {
+    label: 'Тест',
+    pluralLabel: 'Тесты',
+    colorVar: '--type-note',
+    graphColor: '#8a919e',
+    order: 8,
+  },
   note: {
     label: 'Заметка',
     pluralLabel: 'Заметки',
     colorVar: '--type-note',
     graphColor: '#6b7280',
-    order: 8,
+    order: 9,
   },
 };
 

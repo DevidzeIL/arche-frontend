@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useArcheStore } from '@/arche/state/store';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,10 @@ export function NotePage() {
 
   // Выбираем правильный шаблон по типу
   switch (note.type) {
+    // Тест — не текст для чтения, а интерактив: ведём в раздел учёбы
+    case 'quiz':
+      return <Navigate to={`/study/quiz/${note.id}`} replace />;
+
     case 'person':
       return (
         <PersonPage

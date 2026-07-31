@@ -20,6 +20,7 @@ import {
 } from '@/arche/learning/progressStore';
 import { buildCourses } from '@/arche/learning/curriculum';
 import { dueCardIds } from '@/arche/learning/quiz';
+import { listAuthoredQuizzes, buildAuthoredIndex } from '@/arche/learning/authoredQuiz';
 import { firstImageOf } from '@/arche/images';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -30,7 +31,12 @@ export function StudyPage() {
   const progress = useProgressStore();
 
   const courses = useMemo(() => buildCourses(notes), [notes]);
-  const dueCount = useMemo(() => dueCardIds(graph, progress.cards).length, [graph, progress.cards]);
+  const quizzes = useMemo(() => listAuthoredQuizzes(notes), [notes]);
+  const authoredIndex = useMemo(() => buildAuthoredIndex(notes), [notes]);
+  const dueCount = useMemo(
+    () => dueCardIds(graph, progress.cards, (id) => authoredIndex.has(id)).length,
+    [graph, progress.cards, authoredIndex]
+  );
 
   const level = levelFromXp(progress.xp);
   const floor = levelFloor(level);
@@ -252,6 +258,70 @@ export function StudyPage() {
               </section>
             );
           })
+        )}
+
+        {/* Тесты и экзамены */}
+        {(quizzes.length > 0 || courses.length > 0) && (
+          <section className="mb-10">
+            <h2 className="mb-4 font-serif text-2xl">Тесты и экзамены</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {courses.map((course) => {
+                const state = progress.chapters[`exam:${course.hubId}`];
+                const passed = Boolean(state?.completedAt);
+                return (
+                  <Link
+                    key={`exam-${course.hubId}`}
+                    to={`/study/${course.hubId}/exam`}
+                    className={cn(
+                      'group rounded-lg border p-4 transition-colors',
+                      passed
+                        ? 'border-emerald-500/40 bg-emerald-500/5'
+                        : 'border-amber-500/40 bg-amber-500/5 hover:border-amber-500/70'
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-serif text-lg leading-snug group-hover:underline">
+                        Экзамен: {course.title}
+                      </h3>
+                      {passed && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" aria-hidden />}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      20 вопросов со всех глав
+                      {state && state.attempts > 0 && <> · лучший: {Math.round(state.bestScore * 100)}%</>}
+                    </p>
+                  </Link>
+                );
+              })}
+
+              {quizzes.map((quiz) => {
+                const state = progress.chapters[`quiz:${quiz.noteId}`];
+                const passed = Boolean(state?.completedAt);
+                return (
+                  <Link
+                    key={quiz.noteId}
+                    to={`/study/quiz/${quiz.noteId}`}
+                    className={cn(
+                      'group rounded-lg border p-4 transition-colors',
+                      passed
+                        ? 'border-emerald-500/40 bg-emerald-500/5'
+                        : 'border-border/40 bg-card/50 hover:border-primary/50'
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-serif text-lg leading-snug group-hover:underline">
+                        {quiz.title}
+                      </h3>
+                      {passed && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" aria-hidden />}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {quiz.questions.length} вопросов
+                      {state && state.attempts > 0 && <> · лучший: {Math.round(state.bestScore * 100)}%</>}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
         )}
 
         {/* Данные: перенос между устройствами, пока аккаунт локальный */}

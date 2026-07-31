@@ -4,6 +4,7 @@ import { ArrowLeft, Brain, CheckCircle2 } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
 import { useProgressStore } from '@/arche/learning/progressStore';
 import { dueCardIds, regenerateQuestion, type QuizQuestion } from '@/arche/learning/quiz';
+import { buildAuthoredIndex } from '@/arche/learning/authoredQuiz';
 import { QuizSession, type QuizResult } from '@/components/study/QuizSession';
 import { Button } from '@/components/ui/button';
 
@@ -16,6 +17,7 @@ const SESSION_LIMIT = 20;
  */
 export function ReviewPage() {
   const graph = useArcheStore((s) => s.knowledgeGraph);
+  const notes = useArcheStore((s) => s.notes);
   const cards = useProgressStore((s) => s.cards);
   const recordAnswer = useProgressStore((s) => s.recordAnswer);
   const pruneCards = useProgressStore((s) => s.pruneCards);
@@ -25,12 +27,13 @@ export function ReviewPage() {
   // Сессия фиксируется на входе: recordAnswer двигает dueAt,
   // и пересчёт на лету менял бы список под ногами
   const session = useMemo(() => {
-    const due = dueCardIds(graph, cards).slice(0, SESSION_LIMIT);
+    const authored = buildAuthoredIndex(notes);
+    const due = dueCardIds(graph, cards, (id) => authored.has(id)).slice(0, SESSION_LIMIT);
     const questions: QuizQuestion[] = [];
     const dead: string[] = [];
 
     for (const cardId of due) {
-      const q = regenerateQuestion(graph, cardId);
+      const q = authored.get(cardId) ?? regenerateQuestion(graph, cardId);
       if (q) questions.push(q);
       else dead.push(cardId);
     }
