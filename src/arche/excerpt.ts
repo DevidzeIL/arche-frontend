@@ -52,6 +52,16 @@ export function bodyForDisplay(note: ArcheNote): string {
 }
 
 /**
+ * Убирает изображения из markdown — для шаблонов, которые показывают
+ * обложку сами: иначе одна и та же картинка рендерится дважды.
+ */
+export function stripImages(markdown: string): string {
+  return markdown
+    .replace(/!\[\[[^\]]+\]\]\s*/g, '')
+    .replace(/!\[[^\]]*\]\([^)]*\)\s*/g, '');
+}
+
+/**
  * Первый содержательный абзац: пропускаем заголовки, картинки,
  * строки метаданных и списки.
  */
