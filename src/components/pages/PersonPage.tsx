@@ -9,6 +9,7 @@ import { ArrowLeft, Calendar, MapPin, BookOpen, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { NoteConnections } from './NoteConnections';
+import { NoteFlashcards } from './NoteFlashcards';
 import { MarkdownViewer } from '@/arche/markdown/components';
 import { bodyForDisplay } from '@/arche/excerpt';
 import { ArcheNote } from '@/arche/types';
@@ -193,6 +194,8 @@ export function PersonPage({ note, metadata, relatedNotes }: PersonPageProps) {
           </aside>
         )}
         
+        <NoteFlashcards note={note} />
+
         <NoteConnections note={note} />
 
 

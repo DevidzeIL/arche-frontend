@@ -1,3 +1,18 @@
+/**
+ * Цвета темы заданы CSS-переменными в src/index.css как готовые oklch(...).
+ *
+ * Если отдать Tailwind такую переменную голой (`border: 'var(--border)'`),
+ * он не умеет подмешать в неё прозрачность и просто НЕ СОЗДАЁТ классы вида
+ * `bg-card/60` или `bg-border/40`. Правила нет — фон получается прозрачный,
+ * и элемент молча исчезает: так пропадали дорожки шкал прогресса и клетки
+ * календаря занятий, хотя в разметке они были.
+ *
+ * withAlpha подставляет запрошенную прозрачность через color-mix. Без
+ * модификатора Tailwind подставляет `1`, и цвет остаётся ровно исходным.
+ */
+const withAlpha = (variable) =>
+  `color-mix(in oklab, var(${variable}) calc(<alpha-value> * 100%), transparent)`;
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
@@ -8,38 +23,38 @@ export default {
   theme: {
   	extend: {
   		colors: {
-  			border: 'var(--border)',
-  			input: 'var(--input)',
-  			ring: 'var(--ring)',
-  			background: 'var(--background)',
-  			foreground: 'var(--foreground)',
+  			border: withAlpha('--border'),
+  			input: withAlpha('--input'),
+  			ring: withAlpha('--ring'),
+  			background: withAlpha('--background'),
+  			foreground: withAlpha('--foreground'),
   			primary: {
-  				DEFAULT: 'var(--primary)',
-  				foreground: 'var(--primary-foreground)'
+  				DEFAULT: withAlpha('--primary'),
+  				foreground: withAlpha('--primary-foreground')
   			},
   			secondary: {
-  				DEFAULT: 'var(--secondary)',
-  				foreground: 'var(--secondary-foreground)'
+  				DEFAULT: withAlpha('--secondary'),
+  				foreground: withAlpha('--secondary-foreground')
   			},
   			destructive: {
-  				DEFAULT: 'var(--destructive)',
-  				foreground: 'var(--destructive-foreground)'
+  				DEFAULT: withAlpha('--destructive'),
+  				foreground: withAlpha('--destructive-foreground')
   			},
   			muted: {
-  				DEFAULT: 'var(--muted)',
-  				foreground: 'var(--muted-foreground)'
+  				DEFAULT: withAlpha('--muted'),
+  				foreground: withAlpha('--muted-foreground')
   			},
   			accent: {
-  				DEFAULT: 'var(--accent)',
-  				foreground: 'var(--accent-foreground)'
+  				DEFAULT: withAlpha('--accent'),
+  				foreground: withAlpha('--accent-foreground')
   			},
   			card: {
-  				DEFAULT: 'var(--card)',
-  				foreground: 'var(--card-foreground)'
+  				DEFAULT: withAlpha('--card'),
+  				foreground: withAlpha('--card-foreground')
   			},
   			popover: {
-  				DEFAULT: 'var(--popover)',
-  				foreground: 'var(--popover-foreground)'
+  				DEFAULT: withAlpha('--popover'),
+  				foreground: withAlpha('--popover-foreground')
   			}
   		},
   		borderRadius: {

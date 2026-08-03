@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, Waypoints, GraduationCap, Mail, Moon, Sun, Menu, Search } from 'lucide-react';
+import { Home, Waypoints, GraduationCap, Flame, Mail, Moon, Sun, Menu, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useArcheStore } from '@/arche/state/store';
 import { useState } from 'react';
@@ -23,6 +23,7 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { path: '/', label: 'Главная', icon: Home },
   { path: '/timeline', label: 'Карта', icon: Waypoints },
+  { path: '/study/today', label: 'Сегодня', icon: Flame },
   { path: '/study', label: 'Учёба', icon: GraduationCap },
 ];
 
@@ -41,12 +42,18 @@ export function MuseumNavigation({ onOpenSearch }: MuseumNavigationProps) {
     setTheme(newTheme);
   };
 
-  const isActive = (path: string) => {
-    if (path === '/') {
-      return location.pathname === '/';
-    }
-    return location.pathname.startsWith(path);
-  };
+  // Побеждает самое длинное совпадение: иначе «Сегодня» (/study/today)
+  // и «Учёба» (/study) подсвечивались бы одновременно
+  const activePath = navigationItems
+    .map((item) => item.path)
+    .filter((path) =>
+      path === '/'
+        ? location.pathname === '/'
+        : location.pathname === path || location.pathname.startsWith(`${path}/`)
+    )
+    .sort((a, b) => b.length - a.length)[0];
+
+  const isActive = (path: string) => path === activePath;
 
   const handleNavClick = () => {
     setMobileMenuOpen(false);

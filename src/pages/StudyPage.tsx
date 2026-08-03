@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BookOpen,
-  Brain,
   CheckCircle2,
   Download,
   Flame,
@@ -13,31 +12,26 @@ import {
 import { useArcheStore } from '@/arche/state/store';
 import {
   useProgressStore,
+  answeredToday,
   levelFromXp,
   levelFloor,
   levelCeil,
   PASS_SCORE,
 } from '@/arche/learning/progressStore';
 import { buildCourses } from '@/arche/learning/curriculum';
-import { dueCardIds } from '@/arche/learning/quiz';
-import { listAuthoredQuizzes, buildAuthoredIndex } from '@/arche/learning/authoredQuiz';
+import { listAuthoredQuizzes } from '@/arche/learning/authoredQuiz';
 import { firstImageOf } from '@/arche/images';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export function StudyPage() {
   const notes = useArcheStore((s) => s.notes);
-  const graph = useArcheStore((s) => s.knowledgeGraph);
   const progress = useProgressStore();
 
   const courses = useMemo(() => buildCourses(notes), [notes]);
   const quizzes = useMemo(() => listAuthoredQuizzes(notes), [notes]);
-  const authoredIndex = useMemo(() => buildAuthoredIndex(notes), [notes]);
-  const dueCount = useMemo(
-    () => dueCardIds(graph, progress.cards, (id) => authoredIndex.has(id)).length,
-    [graph, progress.cards, authoredIndex]
-  );
 
+  const doneToday = answeredToday(progress.history);
   const level = levelFromXp(progress.xp);
   const floor = levelFloor(level);
   const ceil = levelCeil(level);
@@ -130,10 +124,10 @@ export function StudyPage() {
                 />
                 <span className="font-medium">{progress.streak}</span>
               </div>
-              <Button asChild disabled={dueCount === 0} variant={dueCount ? 'default' : 'outline'}>
-                <Link to="/study/review">
-                  <Brain className="mr-2 h-4 w-4" aria-hidden />
-                  Повторить{dueCount ? ` (${dueCount})` : ''}
+              <Button asChild>
+                <Link to="/study/today">
+                  <Flame className="mr-2 h-4 w-4" aria-hidden />
+                  Сегодня{doneToday > 0 && ` · ${doneToday} карточек`}
                 </Link>
               </Button>
             </div>

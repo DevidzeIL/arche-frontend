@@ -5,7 +5,7 @@ import { NotePage } from '@/pages/NotePage';
 import { HomePage } from '@/pages/HomePage';
 import { StudyPage } from '@/pages/StudyPage';
 import { ChapterPage } from '@/pages/ChapterPage';
-import { ReviewPage } from '@/pages/ReviewPage';
+import { TodayPage } from '@/pages/TodayPage';
 import { ExamPage } from '@/pages/ExamPage';
 import { AuthoredQuizPage } from '@/pages/AuthoredQuizPage';
 import { ContactPage } from '@/pages/ContactPage';
@@ -36,8 +36,13 @@ export const router = createBrowserRouter([
         element: <StudyPage />,
       },
       {
+        path: 'study/today',
+        element: <TodayPage />,
+      },
+      {
+        // Повторение стало частью ежедневной практики; старые ссылки ведут туда же
         path: 'study/review',
-        element: <ReviewPage />,
+        element: <Navigate to="/study/today" replace />,
       },
       {
         path: 'study/quiz/:noteId',

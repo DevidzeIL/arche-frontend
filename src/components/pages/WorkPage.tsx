@@ -9,6 +9,7 @@ import { ArrowLeft, ArrowRight, Calendar, Palette, Ruler, MapPin, ExternalLink }
 import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { NoteConnections } from './NoteConnections';
+import { NoteFlashcards } from './NoteFlashcards';
 import { MarkdownViewer } from '@/arche/markdown/components';
 import { bodyForDisplay, stripImages } from '@/arche/excerpt';
 import { ArcheNote } from '@/arche/types';
@@ -186,6 +187,8 @@ export function WorkPage({ note, metadata, relatedNotes }: WorkPageProps) {
           </div>
         </div>
         
+        <NoteFlashcards note={note} />
+
         <NoteConnections note={note} />
 
 

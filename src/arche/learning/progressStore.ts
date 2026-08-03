@@ -13,9 +13,17 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { reviewCard, type CardState } from './srs';
+import { reviewCard, toGrade, type CardState, type ReviewGrade } from './srs';
 
 export const PASS_SCORE = 0.8;
+
+/** Версия формата данных: с ней сверяется импорт */
+export const DATA_VERSION = 2;
+
+/** Сколько карточек в день по умолчанию — примерно пять минут */
+export const DEFAULT_DAILY_GOAL = 15;
+
+export const DAILY_GOAL_CHOICES = [8, 15, 25, 40];
 
 export interface ChapterProgress {
   attempts: number;
@@ -29,12 +37,24 @@ interface Totals {
 }
 
 interface ProgressData {
-  version: 1;
+  version: number;
   name: string;
   createdAt: string;
   xp: number;
   streak: number;
+  /** Лучший стрик за всё время — его жалко терять, и он мотивирует вернуться */
+  bestStreak: number;
   lastActiveDay: string | null;
+  /** Сколько карточек в день считается выполненной нормой */
+  dailyGoal: number;
+  /** день (YYYY-MM-DD) -> сколько карточек отвечено; основа календаря активности */
+  history: Record<string, number>;
+  /**
+   * день -> сколько карточек увидено впервые. Отдельно от history, потому что
+   * новый материал ограничивается своей нормой: взять сегодня сорок новых
+   * карточек значит получить сорок повторений послезавтра.
+   */
+  newHistory: Record<string, number>;
   /** noteId -> дата первого прочтения */
   lessonsRead: Record<string, string>;
   chapters: Record<string, ChapterProgress>;
@@ -44,8 +64,10 @@ interface ProgressData {
 
 interface ProgressActions {
   rename(name: string): void;
+  setDailyGoal(goal: number): void;
   markLessonRead(noteId: string): void;
-  recordAnswer(cardId: string, correct: boolean): void;
+  /** Ответ на вопрос теста (boolean) или самооценка карточки (ReviewGrade) */
+  recordAnswer(cardId: string, result: boolean | ReviewGrade): void;
   completeQuiz(chapterId: string, score: number): void;
   pruneCards(ids: string[]): void;
   exportData(): string;
@@ -69,11 +91,16 @@ export function levelCeil(level: number): number {
   return 100 * level * level;
 }
 
-function localDay(d = new Date()): string {
+export function localDay(d = new Date()): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+export function shiftDay(day: string, delta: number): string {
+  const [y, m, d] = day.split('-').map(Number);
+  return localDay(new Date(y, m - 1, d + delta));
 }
 
 function isYesterday(day: string, now = new Date()): boolean {
@@ -81,23 +108,41 @@ function isYesterday(day: string, now = new Date()): boolean {
 }
 
 /** Любая учебная активность продлевает стрик, но день считается один раз */
-function touched(state: Pick<ProgressData, 'streak' | 'lastActiveDay'>): Partial<ProgressData> {
+function touched(
+  state: Pick<ProgressData, 'streak' | 'bestStreak' | 'lastActiveDay'>
+): Partial<ProgressData> {
   const today = localDay();
   if (state.lastActiveDay === today) return {};
+  const streak = state.lastActiveDay && isYesterday(state.lastActiveDay) ? state.streak + 1 : 1;
   return {
     lastActiveDay: today,
-    streak: state.lastActiveDay && isYesterday(state.lastActiveDay) ? state.streak + 1 : 1,
+    streak,
+    bestStreak: Math.max(state.bestStreak ?? 0, streak),
   };
+}
+
+/** История активности за последние 180 дней — на большее календарь не смотрит */
+function trimHistory(history: Record<string, number>): Record<string, number> {
+  const cutoff = shiftDay(localDay(), -180);
+  const trimmed: Record<string, number> = {};
+  for (const [day, count] of Object.entries(history)) {
+    if (day >= cutoff) trimmed[day] = count;
+  }
+  return trimmed;
 }
 
 function initialData(): ProgressData {
   return {
-    version: 1,
+    version: DATA_VERSION,
     name: 'Исследователь',
     createdAt: new Date().toISOString(),
     xp: 0,
     streak: 0,
+    bestStreak: 0,
     lastActiveDay: null,
+    dailyGoal: DEFAULT_DAILY_GOAL,
+    history: {},
+    newHistory: {},
     lessonsRead: {},
     chapters: {},
     cards: {},
@@ -107,10 +152,42 @@ function initialData(): ProgressData {
 
 export const XP = {
   lessonRead: 5,
-  correctAnswer: 10,
-  wrongAnswer: 2,
   chapterCompleted: 30,
 } as const;
+
+/** XP за карточку зависит от честности самооценки: «легко» стоит дороже «не помню» */
+const XP_BY_GRADE: Record<ReviewGrade, number> = {
+  again: 2,
+  hard: 6,
+  good: 10,
+  easy: 12,
+};
+
+const PERSISTED_KEYS: (keyof ProgressData)[] = [
+  'version',
+  'name',
+  'createdAt',
+  'xp',
+  'streak',
+  'bestStreak',
+  'lastActiveDay',
+  'dailyGoal',
+  'history',
+  'newHistory',
+  'lessonsRead',
+  'chapters',
+  'cards',
+  'totals',
+];
+
+function pickData(state: ProgressData): ProgressData {
+  const out = {} as ProgressData;
+  for (const key of PERSISTED_KEYS) {
+    // @ts-expect-error — ключи берутся из того же типа
+    out[key] = state[key];
+  }
+  return out;
+}
 
 export const useProgressStore = create<ProgressStore>()(
   persist(
@@ -120,6 +197,10 @@ export const useProgressStore = create<ProgressStore>()(
       rename: (name) => {
         const trimmed = name.trim();
         if (trimmed) set({ name: trimmed.slice(0, 40) });
+      },
+
+      setDailyGoal: (goal) => {
+        if (Number.isFinite(goal) && goal > 0) set({ dailyGoal: Math.round(goal) });
       },
 
       markLessonRead: (noteId) => {
@@ -133,15 +214,21 @@ export const useProgressStore = create<ProgressStore>()(
         });
       },
 
-      recordAnswer: (cardId, correct) => {
+      recordAnswer: (cardId, result) => {
+        const grade = toGrade(result);
+        const today = localDay();
         set((s) => ({
           ...touched(s),
-          xp: s.xp + (correct ? XP.correctAnswer : XP.wrongAnswer),
+          xp: s.xp + XP_BY_GRADE[grade],
+          history: trimHistory({ ...s.history, [today]: (s.history[today] ?? 0) + 1 }),
+          newHistory: s.cards[cardId]
+            ? s.newHistory
+            : trimHistory({ ...s.newHistory, [today]: (s.newHistory[today] ?? 0) + 1 }),
           totals: {
             answered: s.totals.answered + 1,
-            correct: s.totals.correct + (correct ? 1 : 0),
+            correct: s.totals.correct + (grade === 'again' ? 0 : 1),
           },
-          cards: { ...s.cards, [cardId]: reviewCard(s.cards[cardId], correct) },
+          cards: { ...s.cards, [cardId]: reviewCard(s.cards[cardId], grade) },
         }));
       },
 
@@ -174,30 +261,22 @@ export const useProgressStore = create<ProgressStore>()(
         });
       },
 
-      exportData: () => {
-        const s = get();
-        const data: ProgressData = {
-          version: s.version,
-          name: s.name,
-          createdAt: s.createdAt,
-          xp: s.xp,
-          streak: s.streak,
-          lastActiveDay: s.lastActiveDay,
-          lessonsRead: s.lessonsRead,
-          chapters: s.chapters,
-          cards: s.cards,
-          totals: s.totals,
-        };
-        return JSON.stringify(data, null, 2);
-      },
+      exportData: () => JSON.stringify(pickData(get()), null, 2),
 
       importData: (json) => {
         try {
-          const data = JSON.parse(json) as ProgressData;
-          if (data.version !== 1 || typeof data.xp !== 'number' || typeof data.cards !== 'object') {
+          const data = JSON.parse(json) as Partial<ProgressData>;
+          // Экспорт первой версии тоже принимаем: недостающие поля добираются
+          // из значений по умолчанию, терять прогресс из-за формата незачем
+          if (
+            typeof data.version !== 'number' ||
+            data.version > DATA_VERSION ||
+            typeof data.xp !== 'number' ||
+            typeof data.cards !== 'object'
+          ) {
             return false;
           }
-          set(data);
+          set({ ...initialData(), ...data, version: DATA_VERSION });
           return true;
         } catch {
           return false;
@@ -208,18 +287,35 @@ export const useProgressStore = create<ProgressStore>()(
     }),
     {
       name: 'arche-progress',
-      partialize: (s) => ({
-        version: s.version,
-        name: s.name,
-        createdAt: s.createdAt,
-        xp: s.xp,
-        streak: s.streak,
-        lastActiveDay: s.lastActiveDay,
-        lessonsRead: s.lessonsRead,
-        chapters: s.chapters,
-        cards: s.cards,
-        totals: s.totals,
+      version: DATA_VERSION,
+      // Поля, добавленные во второй версии, просто добираются из умолчаний:
+      // прогресс первой версии остаётся целым
+      migrate: (persisted) => ({
+        ...initialData(),
+        ...(persisted as Partial<ProgressData>),
+        version: DATA_VERSION,
       }),
+      partialize: (s) => pickData(s),
     }
   )
 );
+
+/** Сколько карточек отвечено сегодня */
+export function answeredToday(history: Record<string, number>, now = new Date()): number {
+  return history[localDay(now)] ?? 0;
+}
+
+/** Последние n дней в хронологическом порядке — для календаря активности */
+export function activityDays(
+  history: Record<string, number>,
+  n: number,
+  now = new Date()
+): Array<{ day: string; count: number }> {
+  const today = localDay(now);
+  const days: Array<{ day: string; count: number }> = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const day = shiftDay(today, -i);
+    days.push({ day, count: history[day] ?? 0 });
+  }
+  return days;
+}
