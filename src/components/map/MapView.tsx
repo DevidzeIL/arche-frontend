@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Maximize2, HelpCircle } from 'lucide-react';
+import { Maximize2, HelpCircle, List, Network } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
+import { useIsNarrow } from '@/hooks/useIsNarrow';
+import { cn } from '@/lib/utils';
 import { traceGenealogy, findPath, type KnowledgeEdge, type KnowledgeNode } from '@/arche/knowledge';
 import { RELATION_KINDS, RELATION_META, type RelationKind } from '@/arche/relations';
 import { NOTE_TYPES_ORDERED } from '@/arche/noteTypes';
 import { collectDomains, collectTypes } from '@/arche/search';
 import { Button } from '@/components/ui/button';
 import { MapCanvas } from './MapCanvas';
+import { MapTimeline } from './MapTimeline';
 import { MapLegend } from './MapLegend';
 import { WhyPanel, PANEL_DEFAULT_WIDTH } from './WhyPanel';
 import { NodeHoverCard } from './NodeHoverCard';
@@ -26,9 +29,16 @@ interface MapViewProps {
 
 const DEFAULT_KINDS = new Set<RelationKind>(RELATION_KINDS);
 
+/** Схема или лента. На телефоне по умолчанию лента — схема там нечитаема */
+type MapMode = 'canvas' | 'timeline';
+
 export function MapView({ onOpenNote }: MapViewProps) {
   const notes = useArcheStore((state) => state.notes);
   const [searchParams, setSearchParams] = useSearchParams();
+  const narrow = useIsNarrow();
+  // null — «как решит ширина экрана»; после выбора руками решение за пользователем
+  const [modeOverride, setModeOverride] = useState<MapMode | null>(null);
+  const mode: MapMode = modeOverride ?? (narrow ? 'timeline' : 'canvas');
 
   const [camera, setCamera] = useState<Camera>({ centerYear: 800, pxPerYear: 0.5 });
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -214,8 +224,10 @@ export function MapView({ onOpenNote }: MapViewProps) {
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
   const hoveredNode = hovered ? graph.nodeById.get(hovered.id) : null;
-  // При развёрнутой на весь экран панели канвас не нужен вовсе
-  const canvasHidden = selectedId !== null && !Number.isFinite(panelWidth);
+  // При развёрнутой на весь экран панели карта не нужна вовсе. На телефоне
+  // панель всегда во всю ширину, и без этого лента под ней продолжала бы
+  // раскладываться в нулевой ширине
+  const contentHidden = selectedId !== null && !Number.isFinite(panelWidth);
 
   return (
     <div className="relative h-full w-full bg-background">
@@ -224,42 +236,89 @@ export function MapView({ onOpenNote }: MapViewProps) {
         className="absolute inset-y-0 left-0"
         style={{ right: selectedId ? (Number.isFinite(panelWidth) ? panelWidth : '100%') : 0 }}
       >
-        <MapCanvas
-          layout={layout}
-          camera={camera}
-          onCameraChange={setCamera}
-          epochs={epochs}
-          visual={visual}
-          onHover={(id, position) => setHovered(id && position ? { id, ...position } : null)}
-          onSelect={handleSelect}
-          onOpen={onOpenNote}
-          onViewportChange={setViewport}
-        />
+        {contentHidden ? null : mode === 'canvas' ? (
+          <MapCanvas
+            layout={layout}
+            camera={camera}
+            onCameraChange={setCamera}
+            epochs={epochs}
+            visual={visual}
+            onHover={(id, position) => setHovered(id && position ? { id, ...position } : null)}
+            onSelect={handleSelect}
+            onOpen={onOpenNote}
+            onViewportChange={setViewport}
+          />
+        ) : (
+          <MapTimeline
+            graph={graph}
+            nodes={visibleNodes}
+            selectedId={selectedId}
+            onSelect={handleSelect}
+          />
+        )}
       </div>
 
-      {hovered && hoveredNode && hoveredNode.id !== selectedId && (
+      {mode === 'canvas' && hovered && hoveredNode && hoveredNode.id !== selectedId && (
         <NodeHoverCard graph={graph} node={hoveredNode} position={hovered} />
       )}
 
       {/* Управление держим внизу справа: сверху идут подписи эпох, нарисованные на канвасе */}
       {!selectedId && (
-        <div className="absolute bottom-12 right-3 z-20 flex max-w-xs flex-col items-end gap-2">
-          <Button variant="outline" size="sm" onClick={fitToData} title="Вписать всю историю в экран">
-            <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
-            Вся история
-          </Button>
-          <div className="pointer-events-none rounded-lg border border-border/50 bg-card/80 px-3 py-2 text-xs text-muted-foreground backdrop-blur-sm">
-            <p className="flex items-center gap-1.5 text-foreground/80">
-              <HelpCircle className="h-3.5 w-3.5" />
-              Клик по узлу — почему он возник
-            </p>
-            <p className="mt-1">Колесо — масштаб, перетаскивание — движение по времени</p>
-          </div>
+        <div
+          className={cn(
+            'absolute right-3 z-20 flex max-w-xs flex-col items-end gap-2',
+            mode === 'canvas' ? 'bottom-12' : 'bottom-3'
+          )}
+        >
+          {narrow && (
+            <div className="flex rounded-lg border border-border/60 bg-card/90 p-0.5 backdrop-blur-sm">
+              {(
+                [
+                  { key: 'timeline', label: 'Лента', icon: List },
+                  { key: 'canvas', label: 'Схема', icon: Network },
+                ] as const
+              ).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setModeOverride(key)}
+                  aria-pressed={mode === key}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors',
+                    mode === key ? 'bg-accent text-foreground' : 'text-muted-foreground'
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {mode === 'canvas' && (
+            <Button variant="outline" size="sm" onClick={fitToData} title="Вписать всю историю в экран">
+              <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
+              Вся история
+            </Button>
+          )}
+
+          {/* Подсказка про мышь на телефоне бессмысленна и только занимает место */}
+          {!narrow && mode === 'canvas' && (
+            <div className="pointer-events-none rounded-lg border border-border/50 bg-card/80 px-3 py-2 text-xs text-muted-foreground backdrop-blur-sm">
+              <p className="flex items-center gap-1.5 text-foreground/80">
+                <HelpCircle className="h-3.5 w-3.5" />
+                Клик по узлу — почему он возник
+              </p>
+              <p className="mt-1">Колесо — масштаб, перетаскивание — движение по времени</p>
+            </div>
+          )}
         </div>
       )}
 
-      {!canvasHidden && (
+      {!contentHidden && (
       <MapLegend
+        atBottom={mode === 'canvas' ? 48 : 12}
+        showKinds={mode === 'canvas'}
         activeKinds={activeKinds}
         onToggleKind={toggleKind}
         availableTypes={availableTypes}

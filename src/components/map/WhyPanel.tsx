@@ -16,6 +16,7 @@ import { noteTypeLabel } from '@/arche/noteTypes';
 import { formatYear } from '@/arche/timeSpan';
 import { firstImageOf } from '@/arche/images';
 import { Button } from '@/components/ui/button';
+import { useIsNarrow } from '@/hooks/useIsNarrow';
 import { cn } from '@/lib/utils';
 
 const MIN_WIDTH = 320;
@@ -145,10 +146,16 @@ export function WhyPanel({
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [fullscreen, setFullscreen] = useState(false);
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const narrow = useIsNarrow();
+
+  // На телефоне панель шириной 420 не помещалась в экран и обрезалась слева.
+  // Полосы для перетаскивания там всё равно нет, поэтому единственная разумная
+  // ширина — вся: разворачиваем принудительно и прячем кнопку разворота.
+  const expanded = fullscreen || narrow;
 
   useEffect(() => {
-    onWidthChange?.(fullscreen ? Number.POSITIVE_INFINITY : width);
-  }, [width, fullscreen, onWidthChange]);
+    onWidthChange?.(expanded ? Number.POSITIVE_INFINITY : width);
+  }, [width, expanded, onWidthChange]);
 
   // Перетаскивание левого края. Слушатели вешаем на window,
   // иначе курсор «убегает» с узкой полоски и тянуть перестаёт
@@ -194,13 +201,13 @@ export function WhyPanel({
     <aside
       className={cn(
         'absolute inset-y-0 right-0 z-20 flex flex-col border-l border-border/60 bg-card/95 backdrop-blur-sm',
-        fullscreen && 'left-0'
+        expanded && 'left-0'
       )}
-      style={fullscreen ? undefined : { width }}
+      style={expanded ? undefined : { width }}
       aria-label={`Почему возник: ${node.title}`}
     >
       {/* Полоса для изменения ширины */}
-      {!fullscreen && (
+      {!expanded && (
         <div
           onPointerDown={startResize}
           role="separator"
@@ -229,14 +236,16 @@ export function WhyPanel({
           </div>
 
           <div className="flex shrink-0 gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setFullscreen(!fullscreen)}
-              aria-label={fullscreen ? 'Свернуть панель' : 'Развернуть на весь экран'}
-            >
-              {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </Button>
+            {!narrow && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setFullscreen(!fullscreen)}
+                aria-label={fullscreen ? 'Свернуть панель' : 'Развернуть на весь экран'}
+              >
+                {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={onClose} aria-label="Закрыть панель">
               <X className="h-4 w-4" />
             </Button>
@@ -272,7 +281,9 @@ export function WhyPanel({
       <div
         className={cn(
           'flex-1 overflow-y-auto overflow-x-hidden p-4',
-          fullscreen ? 'columns-1 gap-8 lg:columns-2 [&>section]:break-inside-avoid' : 'space-y-6'
+          fullscreen && !narrow
+            ? 'columns-1 gap-8 lg:columns-2 [&>section]:break-inside-avoid'
+            : 'space-y-6'
         )}
       >
         {path && path.edges.length > 0 && (

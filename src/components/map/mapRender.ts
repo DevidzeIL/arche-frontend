@@ -288,12 +288,18 @@ function drawNodes(params: RenderParams): void {
     // Неподписанный узел остаётся точкой — так видно настоящую плотность
     if (!item.labeled && !emphasised) continue;
 
+    // Подпись, не помещающаяся до правого края, рисуется обрубком
+    // («Новое вре») и читается как название. Лучше оставить точку:
+    // раскладка считается в мировых координатах и про край экрана не знает.
+    const labelX = x + item.radius + 6;
+    if (labelX + item.labelWidth > width - 4 && !emphasised) continue;
+
     // Подписи основным цветом и почти без прозрачности: приглушённый
     // серый на тёмном фоне читался плохо
     ctx.globalAlpha = lit ? (emphasised ? 1 : 0.92) : 0.16;
     ctx.font = `${emphasised ? '600 ' : ''}13px -apple-system, Segoe UI, sans-serif`;
     ctx.fillStyle = colors.foreground;
-    ctx.fillText(item.label, x + item.radius + 6, y + 0.5);
+    ctx.fillText(item.label, labelX, y + 0.5);
   }
 
   ctx.restore();

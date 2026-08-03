@@ -56,6 +56,19 @@ export function MapCanvas({
     moved: boolean;
   } | null>(null);
 
+  // Живые касания и состояние щипка.
+  //
+  // На телефоне колеса мыши нет, и без этого масштаб карты не менялся вовсе:
+  // она навсегда оставалась в той плотности, которую дала первая укладка.
+  const touchesRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchRef = useRef<{
+    startDistance: number;
+    startPxPerYear: number;
+    /** Год под серединой щипка в момент начала — он и остаётся на месте */
+    anchorYear: number;
+    anchorOffset: number;
+  } | null>(null);
+
   // Размер канваса
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -190,8 +203,40 @@ export function MapCanvas({
     [camera, onCameraChange, size.width]
   );
 
+  /** Середина щипка и расстояние между пальцами в координатах канваса */
+  const pinchGeometry = () => {
+    const canvas = canvasRef.current;
+    const points = [...touchesRef.current.values()];
+    if (!canvas || points.length < 2) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const [a, b] = points;
+    return {
+      distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+      midX: (a.x + b.x) / 2 - rect.left,
+    };
+  };
+
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
+    touchesRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (touchesRef.current.size === 2) {
+      const geometry = pinchGeometry();
+      if (geometry) {
+        // Второй палец отменяет перетаскивание: иначе карта одновременно
+        // масштабируется и уезжает по времени
+        dragRef.current = null;
+        pinchRef.current = {
+          startDistance: geometry.distance,
+          startPxPerYear: camera.pxPerYear,
+          anchorYear: screenXToYear(geometry.midX, camera, size.width),
+          anchorOffset: geometry.midX - size.width / 2,
+        };
+      }
+      return;
+    }
+
     dragRef.current = {
       active: true,
       pointerId: event.pointerId,
@@ -204,6 +249,26 @@ export function MapCanvas({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (touchesRef.current.has(event.pointerId)) {
+      touchesRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+
+    const pinch = pinchRef.current;
+    if (pinch) {
+      const geometry = pinchGeometry();
+      if (!geometry) return;
+
+      const nextPxPerYear = Math.min(
+        MAX_PX_PER_YEAR,
+        Math.max(MIN_PX_PER_YEAR, pinch.startPxPerYear * (geometry.distance / pinch.startDistance))
+      );
+      onCameraChange({
+        pxPerYear: nextPxPerYear,
+        centerYear: pinch.anchorYear - pinch.anchorOffset / nextPxPerYear,
+      });
+      return;
+    }
+
     const drag = dragRef.current;
 
     if (drag?.active && drag.pointerId === event.pointerId) {
@@ -222,6 +287,15 @@ export function MapCanvas({
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    touchesRef.current.delete(event.pointerId);
+
+    if (pinchRef.current) {
+      // Палец подняли — щипок закончился. Оставшееся касание не превращаем
+      // в перетаскивание: карта дёргалась бы в момент отпускания
+      if (touchesRef.current.size < 2) pinchRef.current = null;
+      return;
+    }
+
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
