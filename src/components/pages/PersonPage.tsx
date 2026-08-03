@@ -82,7 +82,7 @@ export function PersonPage({ note, metadata, relatedNotes }: PersonPageProps) {
         {/* Заголовок */}
         <header className="mb-8">
           <div className="flex items-start justify-between gap-4 mb-6">
-            <h1 className="text-5xl lg:text-6xl font-serif font-light text-foreground/95 leading-tight">
+            <h1 className="min-w-0 break-words text-3xl sm:text-4xl lg:text-6xl font-serif font-light text-foreground/95 leading-tight">
               {note.title}
             </h1>
             <TypeBadge type={note.type} />

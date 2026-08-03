@@ -15,7 +15,7 @@ export function TypeBadge({ type, className }: TypeBadgeProps) {
     <span
       className={cn(
         'inline-flex items-center px-2.5 py-1 text-xs font-medium',
-        'border rounded-full whitespace-nowrap',
+        'border rounded-full whitespace-nowrap shrink-0',
         className
       )}
       style={{
