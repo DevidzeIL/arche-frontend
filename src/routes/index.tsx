@@ -1,18 +1,26 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RootLayout } from '@/layouts/RootLayout';
-import { MapPage } from '@/pages/MapPage';
-import { NotePage } from '@/pages/NotePage';
 import { HomePage } from '@/pages/HomePage';
-import { FeedPage } from '@/pages/FeedPage';
-import { GlobePage } from '@/pages/GlobePage';
-import { StudyPage } from '@/pages/StudyPage';
-import { ChapterPage } from '@/pages/ChapterPage';
-import { TodayPage } from '@/pages/TodayPage';
-import { ExamPage } from '@/pages/ExamPage';
-import { AuthoredQuizPage } from '@/pages/AuthoredQuizPage';
-import { ContactPage } from '@/pages/ContactPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ErrorPage } from '@/pages/ErrorPage';
+
+/**
+ * Тяжёлые экраны грузятся по требованию.
+ *
+ * Одним куском бандл весил около 470 КБ в gzip, и его целиком скачивал
+ * каждый, кто зашёл прочитать одну заметку. Больше всего весят те разделы,
+ * которые открывают реже всего: глобус тянет d3-geo с очертаниями суши,
+ * карта — свой рендер и раскладку, учёба — генератор вопросов.
+ *
+ * Заметки при этом уже загружены: App показывает роутер только после
+ * разбора хранилища, поэтому пустого экрана между маршрутами не будет.
+ */
+const lazyPage = <T extends Record<string, unknown>>(
+  load: () => Promise<T>,
+  name: keyof T
+) => ({
+  lazy: async () => ({ Component: (await load())[name] as React.ComponentType }),
+});
 
 export const router = createBrowserRouter([
   {
@@ -27,27 +35,31 @@ export const router = createBrowserRouter([
       {
         // Путь оставлен прежним: старые ссылки на /timeline продолжают работать
         path: 'timeline',
-        element: <MapPage />,
-      },
-      {
-        path: 'feed',
-        element: <FeedPage />,
+        ...lazyPage(() => import('@/pages/MapPage'), 'MapPage'),
       },
       {
         path: 'globe',
-        element: <GlobePage />,
+        ...lazyPage(() => import('@/pages/GlobePage'), 'GlobePage'),
+      },
+      {
+        path: 'feed',
+        ...lazyPage(() => import('@/pages/FeedPage'), 'FeedPage'),
+      },
+      {
+        path: 'health',
+        ...lazyPage(() => import('@/pages/HealthPage'), 'HealthPage'),
       },
       {
         path: 'note/:noteId',
-        element: <NotePage />,
+        ...lazyPage(() => import('@/pages/NotePage'), 'NotePage'),
       },
       {
         path: 'study',
-        element: <StudyPage />,
+        ...lazyPage(() => import('@/pages/StudyPage'), 'StudyPage'),
       },
       {
         path: 'study/today',
-        element: <TodayPage />,
+        ...lazyPage(() => import('@/pages/TodayPage'), 'TodayPage'),
       },
       {
         // Повторение стало частью ежедневной практики; старые ссылки ведут туда же
@@ -56,19 +68,19 @@ export const router = createBrowserRouter([
       },
       {
         path: 'study/quiz/:noteId',
-        element: <AuthoredQuizPage />,
+        ...lazyPage(() => import('@/pages/AuthoredQuizPage'), 'AuthoredQuizPage'),
       },
       {
         path: 'study/:hubId/exam',
-        element: <ExamPage />,
+        ...lazyPage(() => import('@/pages/ExamPage'), 'ExamPage'),
       },
       {
         path: 'study/:hubId/:chapterIndex',
-        element: <ChapterPage />,
+        ...lazyPage(() => import('@/pages/ChapterPage'), 'ChapterPage'),
       },
       {
         path: 'contact',
-        element: <ContactPage />,
+        ...lazyPage(() => import('@/pages/ContactPage'), 'ContactPage'),
       },
       {
         // Граф стал частью карты; старые ссылки на /graph ведут туда же

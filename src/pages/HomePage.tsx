@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Stethoscope } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { SearchAndFilter } from '@/components/home/SearchAndFilter';
@@ -81,6 +82,13 @@ export function HomePage() {
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl">
             Личная энциклопедия культуры, истории, философии и искусства
           </p>
+          <Link
+            to="/health"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+          >
+            <Stethoscope className="h-3.5 w-3.5" aria-hidden />
+            Что стоит дописать
+          </Link>
         </header>
 
         <div className="mb-8 sm:mb-12">

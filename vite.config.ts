@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 import { readdirSync, statSync, mkdirSync, copyFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
@@ -88,8 +89,74 @@ function getContentType(filePath: string): string {
   return types[ext] || 'application/octet-stream';
 }
 
+/**
+ * Установка на домашний экран и работа без сети.
+ *
+ * Раздел «Сегодня» рассчитан на то, что человек заходит каждый день, —
+ * а значит с телефона и часто там, где связи нет. Заметки и так вшиты
+ * в бандл, поэтому офлайн даётся почти даром: достаточно закэшировать
+ * сам бандл.
+ *
+ * Изображения хранилища НЕ попадают в предзагрузку: их около сорока,
+ * и весят они куда больше самого приложения — скачивать всё это при
+ * первом заходе было бы издевательством. Они кэшируются по мере
+ * просмотра.
+ */
+const pwaPlugin = VitePWA({
+  registerType: 'autoUpdate',
+  includeAssets: ['icons/apple-touch-icon.png'],
+  manifest: {
+    name: 'Arche — карта знаний',
+    short_name: 'Arche',
+    description:
+      'Личная энциклопедия философии и культуры: карта идей на оси времени, глобус, карточки и ежедневная практика.',
+    lang: 'ru',
+    start_url: '/',
+    scope: '/',
+    display: 'standalone',
+    orientation: 'portrait-primary',
+    background_color: '#08090b',
+    theme_color: '#08090b',
+    icons: [
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+      {
+        src: '/icons/icon-maskable-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+    ],
+    shortcuts: [
+      { name: 'Сегодня', short_name: 'Сегодня', url: '/study/today' },
+      { name: 'Листать', short_name: 'Листать', url: '/feed' },
+    ],
+  },
+  workbox: {
+    globPatterns: ['**/*.{js,css,html,woff,woff2}'],
+    globIgnores: ['**/arche-vault/**'],
+    navigateFallback: '/index.html',
+    cleanupOutdatedCaches: true,
+    runtimeCaching: [
+      {
+        urlPattern: ({ url }) => url.pathname.startsWith('/arche-vault/_imgs/'),
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'arche-images',
+          expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 90 },
+        },
+      },
+    ],
+  },
+  devOptions: {
+    // В разработке service worker только мешает: он подсовывает
+    // закэшированный бандл поверх горячей перезагрузки
+    enabled: false,
+  },
+})
+
 export default defineConfig({
-  plugins: [react(), archeVaultStaticPlugin()],
+  plugins: [react(), archeVaultStaticPlugin(), pwaPlugin],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
