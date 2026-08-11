@@ -137,15 +137,29 @@ export function MapView({ onOpenNote }: MapViewProps) {
       spotlight = new Set(path.nodeIds);
       edges = path.edges;
     } else if (selectedId && genealogy) {
-      spotlight = genealogy.involved;
-      // Только рёбра самой родословной. Если брать все связи между
-      // задействованными узлами, у центральных понятий получается клубок,
-      // из которого ничего не прочитать.
-      const traced = [...genealogy.ancestors, ...genealogy.descendants, ...genealogy.contemporaries];
+      const lit = new Set(genealogy.involved);
       const unique = new Map<string, KnowledgeEdge>();
+
+      // Рёбра самой родословной. Если брать все связи между задействованными
+      // узлами, у центральных понятий получается клубок, из которого ничего
+      // не прочитать.
+      const traced = [...genealogy.ancestors, ...genealogy.descendants, ...genealogy.contemporaries];
       traced.forEach((step) => {
         if (activeKinds.has(step.edge.kind)) unique.set(step.edge.id, step.edge);
       });
+
+      // Плюс собственные связи выбранного узла — ЛЮБЫЕ, а не только причинные.
+      // Родословная прослеживается лишь по причинным видам, и у заметки, где
+      // их нет (места связаны через «эпоха», «контекст», «связано с»), клик
+      // показывал пустоту там, где наведение показывало десяток связей.
+      for (const edge of graph.adjacent.get(selectedId) ?? []) {
+        if (!activeKinds.has(edge.kind)) continue;
+        unique.set(edge.id, edge);
+        lit.add(edge.sourceId);
+        lit.add(edge.targetId);
+      }
+
+      spotlight = lit;
       edges = [...unique.values()];
     } else if (hovered) {
       const neighbours = graph.adjacent.get(hovered.id) ?? [];

@@ -9,6 +9,7 @@ import {
   Maximize2,
   Minimize2,
   Swords,
+  Link2,
 } from 'lucide-react';
 import type { KnowledgeEdge, KnowledgeGraph, Genealogy, PathResult } from '@/arche/knowledge';
 import { RELATION_META } from '@/arche/relations';
@@ -197,6 +198,19 @@ export function WhyPanel({
   const ancestors = genealogy.ancestors.filter((s) => s.edge.kind !== 'opposes');
   const descendants = genealogy.descendants.filter((s) => s.edge.kind !== 'opposes');
 
+  // Всё остальное, чем заметка связана: эпоха, авторство, контекст, просто
+  // «связано с». Родословная прослеживается только по причинным видам,
+  // и у заметки без них — у мест это норма — панель оставалась пустой,
+  // хотя связей у неё десяток.
+  const tracedEdges = new Set(
+    [...genealogy.ancestors, ...genealogy.descendants, ...genealogy.contemporaries].map(
+      (step) => step.edge.id
+    )
+  );
+  const other = (graph.adjacent.get(nodeId) ?? []).filter(
+    (edge) => edge.kind !== 'opposes' && !tracedEdges.has(edge.id)
+  );
+
   return (
     <aside
       className={cn(
@@ -353,9 +367,23 @@ export function WhyPanel({
           </Section>
         )}
 
-        {ancestors.length === 0 && descendants.length === 0 && (
+        {other.length > 0 && (
+          <Section title="Связано" hint={`${other.length}`} icon={<Link2 className="h-3.5 w-3.5" />}>
+            <StepList
+              graph={graph}
+              steps={other.map((edge) => ({
+                edge,
+                nodeId: edge.sourceId === nodeId ? edge.targetId : edge.sourceId,
+                depth: 1,
+              }))}
+              onSelect={onSelect}
+            />
+          </Section>
+        )}
+
+        {ancestors.length === 0 && descendants.length === 0 && other.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            У этой заметки пока нет причинных связей. Добавьте в раздел «Связи» ссылки
+            У этой заметки пока нет связей. Добавьте в раздел «Связи» ссылки
             с описанием — например «то, от чего происходит переход» или «ответ на кризис».
           </p>
         )}
