@@ -27,39 +27,67 @@ export interface GapMeta {
   title: string;
   /** Что именно не работает без этого */
   consequence: string;
+  /**
+   * Заготовка, которую можно вставить в заметку. null — чинится не строкой
+   * во frontmatter, а осмысленной работой (дописать текст, найти источник).
+   */
+  snippet: string | null;
 }
 
 export const GAP_META: Record<GapKind, GapMeta> = {
   'no-time': {
     title: 'Без датировки',
     consequence: 'не попадает на карту и в вопросы «что было раньше»',
+    snippet: 'start_year: \nend_year: \nyear_precision: exact',
   },
   'no-place': {
     title: 'Без географии',
     consequence: 'не попадает на глобус',
+    snippet: 'place: [ ]',
   },
   'no-causal': {
     title: 'Без причинных связей',
     consequence: 'нет родословной, не попадает в вопросы «из чего возникло»',
+    snippet: '- [[ ]] — то, от чего происходит переход',
   },
   orphan: {
     title: 'На них никто не ссылается',
     consequence: 'до заметки можно дойти только поиском',
+    // Чинится в ДРУГОЙ заметке, поэтому в буфер кладём ссылку сюда
+    snippet: null,
   },
   stub: {
     title: 'Совсем короткие',
     consequence: 'мало текста для карточек и ленты',
+    snippet: null,
   },
   'no-source': {
     title: 'Источник не указан',
     consequence: 'в разделе источников стоит «требуется источник»',
+    snippet: null,
   },
 };
+
+/**
+ * Что положить в буфер, чтобы починить пробел.
+ *
+ * Раздел говорил, чего не хватает, но чинить приходилось в Obsidian: найти
+ * файл и вспомнить, как называется поле. Здесь готовый кусок вместе с путём —
+ * остаётся вставить и заполнить.
+ */
+export function fixSnippet(kind: GapKind, item: GapItem): string {
+  const meta = GAP_META[kind];
+  if (kind === 'orphan') return `[[${item.title}]]`;
+  if (!meta.snippet) return item.path;
+  return `${item.path}\n\n${meta.snippet}`;
+}
 
 export interface GapItem {
   noteId: string;
   title: string;
   type?: string;
+  /** Путь к файлу в хранилище — его и кладём в буфер вместе с заготовкой */
+  path: string;
 }
 
 export interface Gap {
@@ -121,7 +149,7 @@ export function buildHealthReport({
   let geoRelevant = 0;
 
   for (const note of checked) {
-    const item: GapItem = { noteId: note.id, title: note.title, type: note.type };
+    const item: GapItem = { noteId: note.id, title: note.title, type: note.type, path: note.path };
     const node = graph.nodeById.get(note.id);
 
     if (node?.time) dated += 1;

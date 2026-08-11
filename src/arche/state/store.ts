@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ArcheNote, Tab, AppSettings } from '../types';
+import type { ArcheNote, AppSettings } from '../types';
 import { loadNotes } from '../parser';
 import { buildKnowledgeGraph, type KnowledgeGraph } from '../knowledge';
 
@@ -16,33 +16,40 @@ interface ArcheStore {
   /** Граф знаний строится один раз при загрузке: он нужен и карте, и страницам заметок */
   knowledgeGraph: KnowledgeGraph;
   loaded: boolean;
-  
+
   // Settings
   settings: AppSettings;
-  
+
   // Actions
   loadNotes: () => Promise<void>;
   setTheme: (theme: 'light' | 'dark') => void;
-  setSidebarOpen: (open: boolean) => void;
-  openNote: (noteId: string) => void;
-  closeTab: (tabId: string) => void;
-  pinTab: (tabId: string) => void;
-  unpinTab: (tabId: string) => void;
-  setActiveTab: (tabId: string | null) => void;
-  
+  /** Запомнить, что заметку открывали: из этого строится «недавнее» */
+  rememberVisit: (noteId: string) => void;
+
   // Getters
   getNote: (id: string) => ArcheNote | undefined;
   getNoteByTitle: (title: string) => ArcheNote | undefined;
   getBacklinks: (noteId: string) => ArcheNote[];
-  getCurrentNote: () => ArcheNote | undefined;
+  /** Недавно открытые заметки, свежие первыми; исчезнувшие отсеиваются */
+  getRecentNotes: () => ArcheNote[];
 }
 
-const defaultSettings: AppSettings = {
-  theme: 'dark',
-  sidebarOpen: true,
-  tabs: [],
-  activeTabId: null,
-};
+/** Сколько заметок держим в истории: это список «продолжить», а не архив */
+const RECENT_LIMIT = 12;
+
+/**
+ * Тема по умолчанию берётся из системной, а не назначается тёмной.
+ * Явный выбор сохраняется и системную перекрывает.
+ */
+function preferredTheme(): 'light' | 'dark' {
+  if (typeof window === 'undefined' || !window.matchMedia) return 'dark';
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+const defaultSettings = (): AppSettings => ({
+  theme: preferredTheme(),
+  recent: [],
+});
 
 export const useArcheStore = create<ArcheStore>()(
   persist(
@@ -53,7 +60,7 @@ export const useArcheStore = create<ArcheStore>()(
       backlinks: new Map(),
       knowledgeGraph: buildKnowledgeGraph([]),
       loaded: false,
-      settings: defaultSettings,
+      settings: defaultSettings(),
 
       loadNotes: async () => {
         const notes = await loadNotes();
@@ -89,111 +96,26 @@ export const useArcheStore = create<ArcheStore>()(
         });
       },
 
-      // Запись в localStorage делает zustand persist; здесь только состояние.
-      // Класс на <html> вешает единственный эффект в App.
       setTheme: (theme) => {
         set((state) => ({
           settings: { ...state.settings, theme },
         }));
       },
 
-      setSidebarOpen: (open) => {
-        set((state) => ({
-          settings: { ...state.settings, sidebarOpen: open },
-        }));
-      },
-
-      openNote: (noteId) => {
-        const note = get().notesById.get(noteId);
-        if (!note) return;
-
-        const state = get();
-        const existingTab = state.settings.tabs.find(
-          (tab) => tab.noteId === noteId
-        );
-
-        if (existingTab) {
-          set({
+      rememberVisit: (noteId) => {
+        set((state) => {
+          if (!state.notesById.has(noteId)) return {};
+          const { recent } = state.settings;
+          // Повторный заход поднимает заметку наверх, а не плодит запись
+          if (recent[0] === noteId) return {};
+          return {
             settings: {
               ...state.settings,
-              activeTabId: existingTab.id,
+              recent: [noteId, ...recent.filter((id) => id !== noteId)].slice(0, RECENT_LIMIT),
             },
-          });
-          return;
-        }
-
-        const newTab: Tab = {
-          id: `tab-${Date.now()}-${Math.random()}`,
-          noteId: note.id,
-          title: note.title,
-          pinned: false,
-        };
-
-        set({
-          settings: {
-            ...state.settings,
-            tabs: [...state.settings.tabs, newTab],
-            activeTabId: newTab.id,
-          },
+          };
         });
       },
-
-      closeTab: (tabId) => {
-        const state = get();
-        const tabs = state.settings.tabs.filter((tab) => tab.id !== tabId);
-        const activeTabId =
-          state.settings.activeTabId === tabId
-            ? tabs.length > 0
-              ? tabs[tabs.length - 1].id
-              : null
-            : state.settings.activeTabId;
-
-        set({
-          settings: {
-            ...state.settings,
-            tabs,
-            activeTabId,
-          },
-        });
-      },
-
-      pinTab: (tabId) => {
-        const state = get();
-        const tabs = state.settings.tabs.map((tab) =>
-          tab.id === tabId ? { ...tab, pinned: true } : tab
-        );
-
-        set({
-          settings: {
-            ...state.settings,
-            tabs,
-          },
-        });
-      },
-
-      unpinTab: (tabId) => {
-        const state = get();
-        const tabs = state.settings.tabs.map((tab) =>
-          tab.id === tabId ? { ...tab, pinned: false } : tab
-        );
-
-        set({
-          settings: {
-            ...state.settings,
-            tabs,
-          },
-        });
-      },
-
-      setActiveTab: (tabId) => {
-        set((state) => ({
-          settings: {
-            ...state.settings,
-            activeTabId: tabId,
-          },
-        }));
-      },
-
 
       getNote: (id) => {
         return get().notesById.get(id);
@@ -208,16 +130,11 @@ export const useArcheStore = create<ArcheStore>()(
         return get().backlinks.get(noteId) ?? [];
       },
 
-      getCurrentNote: () => {
+      getRecentNotes: () => {
         const state = get();
-        if (!state.settings.activeTabId) return undefined;
-
-        const activeTab = state.settings.tabs.find(
-          (tab) => tab.id === state.settings.activeTabId
-        );
-        if (!activeTab) return undefined;
-
-        return state.notesById.get(activeTab.noteId);
+        return state.settings.recent
+          .map((id) => state.notesById.get(id))
+          .filter((note): note is ArcheNote => note !== undefined);
       },
     }),
     {
@@ -226,17 +143,18 @@ export const useArcheStore = create<ArcheStore>()(
         settings: state.settings,
       }),
       merge: (persistedState, currentState) => {
-        const persisted = persistedState as ArcheStore;
+        const persisted = persistedState as Partial<ArcheStore> | undefined;
         return {
           ...currentState,
           settings: {
             ...currentState.settings,
-            ...persisted.settings,
+            ...persisted?.settings,
+            // Список вкладок из старой версии хранилища сюда не переносится:
+            // поле другое, и мусор из localStorage не должен всплывать
+            recent: persisted?.settings?.recent ?? [],
           },
         };
       },
     }
   )
 );
-
-

@@ -1,11 +1,11 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Stethoscope } from 'lucide-react';
+import { History, Stethoscope } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { SearchAndFilter } from '@/components/home/SearchAndFilter';
 import { Button } from '@/components/ui/button';
-import { NOTE_TYPES_ORDERED, noteTypePluralLabel } from '@/arche/noteTypes';
+import { NOTE_TYPES_ORDERED, noteTypeMeta, noteTypePluralLabel } from '@/arche/noteTypes';
 import { applyNoteFilters, hasActiveFilters, EMPTY_FILTERS, type NoteFilters } from '@/arche/search';
 import { firstImageOf } from '@/arche/images';
 import { excerptOf } from '@/arche/excerpt';
@@ -72,6 +72,14 @@ export function HomePage() {
 
   const filtersActive = hasActiveFilters(filters);
 
+  // История посещений живёт в сторе; здесь только отбрасываем исчезнувшее
+  const recent = useArcheStore((state) => state.settings.recent);
+  const getNote = useArcheStore((state) => state.getNote);
+  const recentNotes = useMemo(
+    () => recent.map(getNote).filter((n): n is ArcheNote => n !== undefined).slice(0, 8),
+    [recent, getNote]
+  );
+
   return (
     <div className="h-full w-full overflow-y-auto">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 max-w-7xl">
@@ -90,6 +98,34 @@ export function HomePage() {
             Что стоит дописать
           </Link>
         </header>
+
+        {/* Продолжить с того, на чём остановились. Показываем только когда
+            не ищут: во время поиска это лишний ряд между запросом и выдачей */}
+        {recentNotes.length > 0 && !filtersActive && (
+          <section className="mb-8 sm:mb-10">
+            <h2 className="mb-3 flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+              <History className="h-3.5 w-3.5" aria-hidden />
+              Недавнее
+            </h2>
+            <ul className="flex flex-wrap gap-2">
+              {recentNotes.map((note) => (
+                <li key={note.id}>
+                  <Link
+                    to={`/note/${note.id}`}
+                    className="inline-flex items-center gap-2 rounded-full border border-border/50 px-3 py-1.5 text-sm transition-colors hover:border-primary/60 hover:bg-accent/40"
+                  >
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ background: noteTypeMeta(note.type).graphColor }}
+                      aria-hidden
+                    />
+                    {note.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="mb-8 sm:mb-12">
           <SearchAndFilter

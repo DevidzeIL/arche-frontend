@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
-import { searchNotes } from '@/arche/search';
+import { searchNotes, matchSnippet } from '@/arche/search';
 import { noteTypeLabel } from '@/arche/noteTypes';
 import { cn } from '@/lib/utils';
 
@@ -124,12 +124,31 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                   onClick={() => openNote(note.id)}
                   onMouseEnter={() => setActiveIndex(index)}
                   className={cn(
-                    'w-full text-left px-4 py-2.5 flex items-baseline justify-between gap-3 transition-colors',
+                    'w-full px-4 py-2.5 text-left transition-colors',
                     index === activeIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
                   )}
                 >
-                  <span className="font-serif truncate">{note.title}</span>
-                  <span className="text-xs text-muted-foreground shrink-0">{noteTypeLabel(note.type)}</span>
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="truncate font-serif">{note.title}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {noteTypeLabel(note.type)}
+                    </span>
+                  </span>
+                  {/* Совпадение нашлось в тексте — показываем где, иначе
+                      непонятно, почему заметка в выдаче */}
+                  {(() => {
+                    const snippet = matchSnippet(note, query);
+                    if (!snippet) return null;
+                    return (
+                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                        {snippet.before}
+                        <mark className="bg-transparent font-medium text-foreground">
+                          {snippet.match}
+                        </mark>
+                        {snippet.after}
+                      </span>
+                    );
+                  })()}
                 </button>
               </li>
             ))}

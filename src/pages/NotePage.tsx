@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useArcheStore } from '@/arche/state/store';
 import { ArrowLeft } from 'lucide-react';
@@ -13,8 +14,15 @@ export function NotePage() {
   const notes = useArcheStore((state) => state.notes);
   const getNote = useArcheStore((state) => state.getNote);
   const getNoteByTitle = useArcheStore((state) => state.getNoteByTitle);
+  const rememberVisit = useArcheStore((state) => state.rememberVisit);
 
   const note = noteId ? getNote(noteId) : null;
+
+  // Историю пишем здесь, а не в местах, откуда переходят: заметку открывают
+  // из каталога, поиска, ленты, карты и глобуса — а страница одна
+  useEffect(() => {
+    if (noteId) rememberVisit(noteId);
+  }, [noteId, rememberVisit]);
 
   if (!note) {
     return (

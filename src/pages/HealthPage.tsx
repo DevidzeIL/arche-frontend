@@ -1,14 +1,51 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Stethoscope } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy, Stethoscope } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
 import { buildPlaceIndex, resolveAllPlaces } from '@/arche/geo';
-import { buildHealthReport, GAP_META, type GapKind } from '@/arche/health';
+import { buildHealthReport, fixSnippet, GAP_META, type GapKind } from '@/arche/health';
 import { noteTypeLabel, noteTypeMeta } from '@/arche/noteTypes';
 import { cn } from '@/lib/utils';
 
 /** Сколько заметок в списке показывать до нажатия «ещё» */
 const PREVIEW = 12;
+
+/**
+ * Кладёт в буфер путь к файлу и заготовку строки.
+ *
+ * Приложение остаётся read-only: править хранилище всё равно в Obsidian.
+ * Но искать файл и вспоминать название поля больше не нужно.
+ */
+function CopyButton({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setDone(true);
+      window.setTimeout(() => setDone(false), 1600);
+    } catch {
+      // Буфер недоступен (нет разрешения или небезопасный контекст) —
+      // молча ничего не делаем, вместо того чтобы пугать ошибкой
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={done ? 'Скопировано' : 'Скопировать путь и заготовку'}
+      title={text}
+      className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+    >
+      {done ? (
+        <Check className="h-3.5 w-3.5 text-emerald-500" aria-hidden />
+      ) : (
+        <Copy className="h-3.5 w-3.5" aria-hidden />
+      )}
+    </button>
+  );
+}
 
 /**
  * Что в хранилище стоит дописать.
@@ -113,21 +150,28 @@ export function HealthPage() {
                   </div>
                   <p className="mt-0.5 text-sm text-muted-foreground">{meta.consequence}</p>
 
-                  <ul className="mt-3 flex flex-wrap gap-1.5">
+                  <ul className="mt-3 space-y-0.5">
                     {shown.map((item) => (
-                      <li key={item.noteId}>
+                      <li
+                        key={item.noteId}
+                        className="flex items-center gap-2 rounded-md px-1 py-1 hover:bg-accent/30"
+                      >
+                        <span
+                          className="h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ background: noteTypeMeta(item.type).graphColor }}
+                          aria-hidden
+                        />
                         <Link
                           to={`/note/${item.noteId}`}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border/50 px-2.5 py-1 text-[13px] transition-colors hover:border-primary/60 hover:bg-accent/40"
+                          className="min-w-0 flex-1 truncate text-[14px] hover:underline"
                           title={noteTypeLabel(item.type)}
                         >
-                          <span
-                            className="h-1.5 w-1.5 shrink-0 rounded-full"
-                            style={{ background: noteTypeMeta(item.type).graphColor }}
-                            aria-hidden
-                          />
                           {item.title}
                         </Link>
+                        <span className="hidden shrink-0 font-mono text-[11px] text-muted-foreground/60 sm:inline">
+                          {item.path}
+                        </span>
+                        <CopyButton text={fixSnippet(gap.kind, item)} />
                       </li>
                     ))}
                   </ul>

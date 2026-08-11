@@ -54,17 +54,15 @@ export interface NoteLink {
   targetTitle: string; // название из ссылки
 }
 
-export interface Tab {
-  id: string;
-  noteId: string;
-  title: string;
-  pinned: boolean;
-}
-
 export interface AppSettings {
   theme: 'light' | 'dark';
-  sidebarOpen: boolean;
-  tabs: Tab[];
-  activeTabId: string | null;
+  /**
+   * Недавно открытые заметки, свежие первыми.
+   *
+   * Раньше здесь копились «вкладки» от так и не сделанного редактора:
+   * список рос без предела, а показывать его было некому. Теперь это
+   * просто история посещений, из которой строится «продолжить».
+   */
+  recent: string[];
 }
 
