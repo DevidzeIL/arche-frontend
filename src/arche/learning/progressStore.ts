@@ -18,7 +18,7 @@ import { reviewCard, toGrade, type CardState, type ReviewGrade } from './srs';
 export const PASS_SCORE = 0.8;
 
 /** Версия формата данных: с ней сверяется импорт */
-export const DATA_VERSION = 2;
+export const DATA_VERSION = 3;
 
 /** Сколько карточек в день по умолчанию — примерно пять минут */
 export const DEFAULT_DAILY_GOAL = 15;
@@ -57,6 +57,8 @@ interface ProgressData {
   newHistory: Record<string, number>;
   /** noteId -> дата первого прочтения */
   lessonsRead: Record<string, string>;
+  /** id фрагмента ленты -> дата прочтения; лента по нему не гоняет одно и то же */
+  feedSeen: Record<string, string>;
   chapters: Record<string, ChapterProgress>;
   cards: Record<string, CardState>;
   totals: Totals;
@@ -66,6 +68,10 @@ interface ProgressActions {
   rename(name: string): void;
   setDailyGoal(goal: number): void;
   markLessonRead(noteId: string): void;
+  /** Фрагмент ленты дочитан и ушёл вверх экрана */
+  markFragmentRead(fragmentId: string): void;
+  /** Завести карточки заметки в колоду со сроком «сегодня» */
+  seedCards(cardIds: string[]): void;
   /** Ответ на вопрос теста (boolean) или самооценка карточки (ReviewGrade) */
   recordAnswer(cardId: string, result: boolean | ReviewGrade): void;
   completeQuiz(chapterId: string, score: number): void;
@@ -144,6 +150,7 @@ function initialData(): ProgressData {
     history: {},
     newHistory: {},
     lessonsRead: {},
+    feedSeen: {},
     chapters: {},
     cards: {},
     totals: { answered: 0, correct: 0 },
@@ -153,6 +160,8 @@ function initialData(): ProgressData {
 export const XP = {
   lessonRead: 5,
   chapterCompleted: 30,
+  /** Фрагмент ленты — меньше карточки: прочитать легче, чем вспомнить */
+  fragmentRead: 2,
 } as const;
 
 /** XP за карточку зависит от честности самооценки: «легко» стоит дороже «не помню» */
@@ -175,6 +184,7 @@ const PERSISTED_KEYS: (keyof ProgressData)[] = [
   'history',
   'newHistory',
   'lessonsRead',
+  'feedSeen',
   'chapters',
   'cards',
   'totals',
@@ -211,6 +221,33 @@ export const useProgressStore = create<ProgressStore>()(
             xp: s.xp + XP.lessonRead,
             lessonsRead: { ...s.lessonsRead, [noteId]: new Date().toISOString() },
           };
+        });
+      },
+
+      markFragmentRead: (fragmentId) => {
+        set((s) => {
+          if (s.feedSeen[fragmentId]) return {};
+          return {
+            ...touched(s),
+            xp: s.xp + XP.fragmentRead,
+            feedSeen: { ...s.feedSeen, [fragmentId]: new Date().toISOString() },
+          };
+        });
+      },
+
+      // Карточки заводятся со сроком «сейчас», но в сегодняшнюю норму попадут
+      // не все разом: план дня всё равно режет стопку по своему лимиту
+      seedCards: (cardIds) => {
+        set((s) => {
+          const fresh = cardIds.filter((id) => !s.cards[id]);
+          if (fresh.length === 0) return {};
+
+          const now = new Date().toISOString();
+          const cards = { ...s.cards };
+          for (const id of fresh) {
+            cards[id] = { box: 1, dueAt: now, reps: 0, lapses: 0 };
+          }
+          return { cards };
         });
       },
 

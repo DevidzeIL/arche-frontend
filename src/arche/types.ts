@@ -10,6 +10,23 @@ export interface NoteTimeSpan {
   precision?: 'exact' | 'approximate' | 'century';
 }
 
+/**
+ * Точка на глобусе. Задаётся только в заметках-местах (type: place):
+ * остальные заметки ссылаются на место по названию, а не носят координаты.
+ */
+export interface NoteGeo {
+  lat: number;
+  lon: number;
+  /**
+   * Страна или регион рисуется мягким пятном, город — точкой: у «Германии»
+   * нет координат в том же смысле, что у Кёнигсберга, и делать вид, что есть,
+   * значит врать масштабом.
+   */
+  scale: 'city' | 'region';
+  /** Как место называют в текстах заметок: «Афины», «Аттика», «Англия» */
+  aliases: string[];
+}
+
 export interface ArcheNote {
   id: string;
   path: string;
@@ -26,6 +43,9 @@ export interface ArcheNote {
   plainText: string; // для поиска
   links: string[]; // все [[wikilinks]] из тела
   timeSpan?: NoteTimeSpan; // явные даты из frontmatter
+  geo?: NoteGeo; // координаты; только у заметок-мест
+  /** Явная привязка к местам: `place: [Афины, Париж]` во frontmatter */
+  places: string[];
 }
 
 export interface NoteLink {

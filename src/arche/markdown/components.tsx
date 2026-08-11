@@ -44,12 +44,15 @@ export function WikilinkButton({ title, displayText }: WikilinkButtonProps) {
       }}
       className={cn(
         'text-primary hover:underline font-medium inline cursor-pointer',
-        !note && 'text-muted-foreground opacity-60 cursor-not-allowed'
+        // Ссылка без заметки — всё ещё слово в предложении, и его надо читать.
+        // Гашение до opacity-60 со скобкой «(?)» выбивало из текста кусок фразы,
+        // поэтому отсутствие цели помечаем пунктиром, а не потерей контраста.
+        !note &&
+          'text-foreground/80 font-normal decoration-dotted decoration-muted-foreground/70 underline underline-offset-4 cursor-help'
       )}
       title={note ? `Открыть: ${title}` : `Заметка не найдена: ${title}`}
     >
       {displayText || title}
-      {!note && ' (?)'}
     </span>
   );
 }

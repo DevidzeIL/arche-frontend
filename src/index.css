@@ -145,11 +145,23 @@
 
 /* Стили для markdown */
 @layer base {
+  /*
+   * ЦВЕТ ЗАДАЁТСЯ КАЖДОМУ ЭЛЕМЕНТУ ОТДЕЛЬНО, а не через переменные
+   * --tw-prose-*: те объявлены самим плагином на том же селекторе .prose
+   * и в слое components, поэтому из @layer base их не перебить.
+   *
+   * Пока в списке не было strong, blockquote и em, жирный текст в тёмной
+   * теме рисовался дефолтным #111827 — почти чёрным по чёрному, и слово
+   * просто исчезало из фразы.
+   */
   .prose,
   .prose p,
   .prose li,
   .prose td,
   .prose th,
+  .prose strong,
+  .prose em,
+  .prose blockquote,
   .prose h1,
   .prose h2,
   .prose h3,

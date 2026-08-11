@@ -3,6 +3,8 @@ import { RootLayout } from '@/layouts/RootLayout';
 import { MapPage } from '@/pages/MapPage';
 import { NotePage } from '@/pages/NotePage';
 import { HomePage } from '@/pages/HomePage';
+import { FeedPage } from '@/pages/FeedPage';
+import { GlobePage } from '@/pages/GlobePage';
 import { StudyPage } from '@/pages/StudyPage';
 import { ChapterPage } from '@/pages/ChapterPage';
 import { TodayPage } from '@/pages/TodayPage';
@@ -26,6 +28,14 @@ export const router = createBrowserRouter([
         // Путь оставлен прежним: старые ссылки на /timeline продолжают работать
         path: 'timeline',
         element: <MapPage />,
+      },
+      {
+        path: 'feed',
+        element: <FeedPage />,
+      },
+      {
+        path: 'globe',
+        element: <GlobePage />,
       },
       {
         path: 'note/:noteId',

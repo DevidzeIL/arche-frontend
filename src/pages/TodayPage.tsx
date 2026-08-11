@@ -272,16 +272,19 @@ export function TodayPage() {
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               {plan.lesson.excerpt}
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3"
-              onClick={() => openLesson(plan.lesson!.noteId)}
-            >
-              <BookOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-              Прочитать
-              <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden />
-            </Button>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => openLesson(plan.lesson!.noteId)}>
+                <BookOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                Прочитать
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden />
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/feed">
+                  <Layers className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                  Или просто полистать
+                </Link>
+              </Button>
+            </div>
           </section>
         )}
 

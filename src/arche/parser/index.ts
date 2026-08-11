@@ -1,5 +1,5 @@
 import matter from 'gray-matter';
-import type { ArcheNote, NoteTimeSpan } from '../types';
+import type { ArcheNote, NoteGeo, NoteTimeSpan } from '../types';
 
 // Игнорируемые папки
 export const EXCLUDED_FOLDERS = ['_rules', '_templates'];
@@ -113,6 +113,54 @@ export function parseTimeSpan(frontmatter: Record<string, unknown>): NoteTimeSpa
   };
 }
 
+/** Строка или список строк из frontmatter — обе формы удобны в Obsidian */
+function readList(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map((v) => String(v).trim()).filter(Boolean);
+  if (typeof raw === 'string') {
+    return raw
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+/**
+ * Координаты заметки-места:
+ *
+ *   lat: 37.98
+ *   lon: 23.73
+ *   scale: city | region
+ *   aliases: [Афины, Аттика]
+ *
+ * Координаты есть только у мест. Остальные заметки к местам привязываются
+ * по названию — так же, как связи между заметками задаются ссылками,
+ * а не продублированными данными.
+ */
+export function parseGeo(frontmatter: Record<string, unknown>): NoteGeo | undefined {
+  const read = (...keys: string[]): number | undefined => {
+    for (const key of keys) {
+      const raw = frontmatter[key];
+      if (raw === undefined || raw === null || raw === '') continue;
+      const value = typeof raw === 'number' ? raw : Number(String(raw).trim());
+      if (Number.isFinite(value)) return value;
+    }
+    return undefined;
+  };
+
+  const lat = read('lat', 'latitude');
+  const lon = read('lon', 'lng', 'longitude');
+  if (lat === undefined || lon === undefined) return undefined;
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return undefined;
+
+  return {
+    lat,
+    lon,
+    scale: String(frontmatter.scale ?? '').trim() === 'region' ? 'region' : 'city',
+    aliases: readList(frontmatter.aliases),
+  };
+}
+
 // Парсинг одного файла
 export function parseNote(
   filePath: string,
@@ -183,6 +231,8 @@ export function parseNote(
       plainText,
       links,
       timeSpan: parseTimeSpan(frontmatter),
+      geo: parseGeo(frontmatter),
+      places: readList(frontmatter.place ?? frontmatter.places),
     };
   } catch (error) {
     // Error parsing note - skip silently

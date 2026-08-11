@@ -1,6 +1,18 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, Waypoints, GraduationCap, Flame, Mail, Moon, Sun, Menu, Search } from 'lucide-react';
+import {
+  Home,
+  Waypoints,
+  Globe2,
+  GraduationCap,
+  Flame,
+  Layers,
+  Mail,
+  Moon,
+  Sun,
+  Menu,
+  Search,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useArcheStore } from '@/arche/state/store';
 import { useState } from 'react';
@@ -23,6 +35,8 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { path: '/', label: 'Главная', icon: Home },
   { path: '/timeline', label: 'Карта', icon: Waypoints },
+  { path: '/globe', label: 'Глобус', icon: Globe2 },
+  { path: '/feed', label: 'Листать', icon: Layers },
   { path: '/study/today', label: 'Сегодня', icon: Flame },
   { path: '/study', label: 'Учёба', icon: GraduationCap },
 ];
