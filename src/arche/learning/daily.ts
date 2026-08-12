@@ -124,6 +124,32 @@ function buildLessonOfDay(
     : null;
 }
 
+/**
+ * Собирает шаги сессии по списку идентификаторов карточек.
+ *
+ * Нужно там, где стопка задаётся не планом дня, а выбором: «повторить
+ * именно то, что не запоминается». Карточки, чьи сущности исчезли
+ * из хранилища, молча отсеиваются.
+ */
+export function itemsForCards(
+  cardIds: string[],
+  notes: ArcheNote[],
+  graph: KnowledgeGraph
+): DailyItem[] {
+  const deck = buildDeck(notes, graph);
+  const authored = buildAuthoredIndex(notes);
+
+  return cardIds
+    .map((cardId): DailyItem | null => {
+      const card = deck.get(cardId);
+      if (card) return { cardId, kind: 'card', card, isNew: false };
+
+      const question = authored.get(cardId) ?? regenerateQuestion(graph, cardId);
+      return question ? { cardId, kind: 'quiz', question, isNew: false } : null;
+    })
+    .filter((item): item is DailyItem => item !== null);
+}
+
 export interface DailyPlanInput {
   notes: ArcheNote[];
   graph: KnowledgeGraph;

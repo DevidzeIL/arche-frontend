@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { NoteConnections } from './NoteConnections';
 import { NoteFlashcards } from './NoteFlashcards';
+import { LessonNav } from './LessonNav';
 import { MarkdownViewer } from '@/arche/markdown/components';
 import { bodyForDisplay } from '@/arche/excerpt';
 import { ArcheNote } from '@/arche/types';
@@ -161,6 +162,8 @@ export function TimePage({ note, metadata, relatedNotes }: TimePageProps) {
         </div>
         
         <NoteFlashcards note={note} />
+
+        <LessonNav note={note} />
 
         <NoteConnections note={note} />
 

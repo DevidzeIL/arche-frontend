@@ -42,6 +42,26 @@ interface SearchAndFilterProps {
   className?: string;
 }
 
+/** Пустое поле — граница не задана, а не ноль */
+function parseYear(raw: string): number | null {
+  if (raw.trim() === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Готовые периоды: набирать «-800» и «500» руками ради обычного вопроса
+ * «покажи античность» никто не будет. Границы совпадают с эпохами хранилища.
+ */
+const PERIODS = [
+  { label: 'Античность', from: -800, to: 500 },
+  { label: 'Средневековье', from: 500, to: 1400 },
+  { label: 'Возрождение', from: 1400, to: 1600 },
+  { label: 'Новое время', from: 1600, to: 1800 },
+  { label: 'XIX век', from: 1800, to: 1900 },
+  { label: 'XX век', from: 1900, to: 2000 },
+];
+
 /**
  * Контролируемый компонент: фильтры живут у родителя.
  * Раньше он держал состояние сам и «поднимал» результат наверх через useEffect —
@@ -111,7 +131,9 @@ export function SearchAndFilter({
           Фильтры
           {active && (
             <Badge variant="secondary" className="ml-2">
-              {filters.types.length + filters.domains.length}
+              {filters.types.length +
+                filters.domains.length +
+                (filters.fromYear !== null || filters.toYear !== null ? 1 : 0)}
             </Badge>
           )}
         </Button>
@@ -155,6 +177,60 @@ export function SearchAndFilter({
             </div>
           </div>
         )}
+
+        {/* Датировка есть у большинства заметок, но спросить «что было
+            между 1600 и 1800» до сих пор было нельзя */}
+        <div>
+          <h3 className="mb-2 text-sm font-medium">Годы</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="number"
+              inputMode="numeric"
+              value={filters.fromYear ?? ''}
+              onChange={(e) =>
+                onFiltersChange({ ...filters, fromYear: parseYear(e.target.value) })
+              }
+              placeholder="от"
+              aria-label="Год от"
+              className="h-9 w-24"
+            />
+            <span className="text-muted-foreground">—</span>
+            <Input
+              type="number"
+              inputMode="numeric"
+              value={filters.toYear ?? ''}
+              onChange={(e) =>
+                onFiltersChange({ ...filters, toYear: parseYear(e.target.value) })
+              }
+              placeholder="до"
+              aria-label="Год до"
+              className="h-9 w-24"
+            />
+            <span className="text-xs text-muted-foreground">до н.э. — со знаком минус</span>
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {PERIODS.map((period) => {
+              const selected =
+                filters.fromYear === period.from && filters.toYear === period.to;
+              return (
+                <FilterChip
+                  key={period.label}
+                  selected={selected}
+                  onClick={() =>
+                    onFiltersChange({
+                      ...filters,
+                      fromYear: selected ? null : period.from,
+                      toYear: selected ? null : period.to,
+                    })
+                  }
+                >
+                  {period.label}
+                </FilterChip>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="pt-2 border-t text-sm text-muted-foreground flex items-center justify-between gap-3">
           <span aria-live="polite">

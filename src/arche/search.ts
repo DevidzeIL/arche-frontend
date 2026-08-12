@@ -4,21 +4,33 @@
  */
 
 import type { ArcheNote } from './types';
+import { resolveNoteTime } from './timeSpan';
 
 export interface NoteFilters {
   query: string;
   types: string[];
   domains: string[];
+  /** Диапазон лет; null — граница не задана. До н.э. — отрицательные */
+  fromYear: number | null;
+  toYear: number | null;
 }
 
 export const EMPTY_FILTERS: NoteFilters = {
   query: '',
   types: [],
   domains: [],
+  fromYear: null,
+  toYear: null,
 };
 
 export function hasActiveFilters(filters: NoteFilters): boolean {
-  return filters.query.trim().length > 0 || filters.types.length > 0 || filters.domains.length > 0;
+  return (
+    filters.query.trim().length > 0 ||
+    filters.types.length > 0 ||
+    filters.domains.length > 0 ||
+    filters.fromYear !== null ||
+    filters.toYear !== null
+  );
 }
 
 function normalize(value: string): string {
@@ -108,6 +120,23 @@ export function applyNoteFilters(notes: ArcheNote[], filters: NoteFilters): Arch
 
   if (filters.domains.length > 0) {
     result = result.filter((note) => note.domain?.some((domain) => filters.domains.includes(domain)) ?? false);
+  }
+
+  if (filters.fromYear !== null || filters.toYear !== null) {
+    result = result.filter((note) => {
+      const time = resolveNoteTime(note)?.time;
+      // Заметка без датировки в диапазон не попадает: приписывать ей год
+      // было бы враньём, а показывать вне запроса — шумом
+      if (!time) return false;
+
+      // Пересечение интервалов, а не попадание точки: эпоха 1400–1600
+      // должна находиться и по запросу «1450–1500»
+      const start = time.startYear;
+      const end = time.endYear ?? time.startYear;
+      if (filters.fromYear !== null && end < filters.fromYear) return false;
+      if (filters.toYear !== null && start > filters.toYear) return false;
+      return true;
+    });
   }
 
   return searchNotes(result, filters.query);

@@ -284,7 +284,10 @@ export function MapView({ onOpenNote }: MapViewProps) {
             mode === 'canvas' ? 'bottom-12' : 'bottom-3'
           )}
         >
-          {narrow && (
+          {/* Переключатель показываем всегда, а не только на телефоне:
+              канвас недоступен с клавиатуры и для скринридера, а лента —
+              единственный способ пользоваться картой без мыши */}
+          {
             <div className="flex rounded-lg border border-border/60 bg-card/90 p-0.5 backdrop-blur-sm">
               {(
                 [
@@ -307,7 +310,7 @@ export function MapView({ onOpenNote }: MapViewProps) {
                 </button>
               ))}
             </div>
-          )}
+          }
 
           {mode === 'canvas' && (
             <Button variant="outline" size="sm" onClick={fitToData} title="Вписать всю историю в экран">

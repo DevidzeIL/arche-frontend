@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowRight,
   BookOpen,
@@ -19,11 +19,19 @@ import {
   levelFromXp,
   DAILY_GOAL_CHOICES,
 } from '@/arche/learning/progressStore';
-import { buildDailyPlan, newPerDay, nextDueDate, type DailyItem } from '@/arche/learning/daily';
+import {
+  buildDailyPlan,
+  itemsForCards,
+  newPerDay,
+  nextDueDate,
+  type DailyItem,
+} from '@/arche/learning/daily';
+import { findWeakSpots } from '@/arche/learning/weakSpots';
 import { DailySession, type DailySessionStats } from '@/components/study/DailySession';
 import { ActivityCalendar } from '@/components/study/ActivityCalendar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { plural } from '@/lib/plural';
 
 type Phase = 'idle' | 'session' | 'done';
 
@@ -40,6 +48,7 @@ const EXTRA_SIZE = 10;
  */
 export function TodayPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const notes = useArcheStore((s) => s.notes);
   const graph = useArcheStore((s) => s.knowledgeGraph);
 
@@ -108,6 +117,25 @@ export function TodayPage() {
     setPlanKey((k) => k + 1);
   };
 
+  // Стопка «повторить именно то, что не запоминается» приходит ссылкой
+  // с «Учёбы». Параметр съедаем сразу, иначе обновление страницы
+  // запускало бы ту же сессию заново
+  useEffect(() => {
+    if (searchParams.get('repeat') !== 'weak') return;
+    setSearchParams({}, { replace: true });
+
+    const state = useProgressStore.getState();
+    const weak = findWeakSpots({ notes, graph, cards: state.cards })
+      .flatMap((spot) => spot.cards.map((card) => card.cardId))
+      .slice(0, 20);
+
+    const built = itemsForCards(weak, notes, graph);
+    if (built.length === 0) return;
+    setSessionItems(built);
+    setResult(null);
+    setPhase('session');
+  }, [searchParams, setSearchParams, notes, graph]);
+
   const openLesson = (noteId: string) => {
     markLessonRead(noteId);
     navigate(`/note/${noteId}`);
@@ -164,7 +192,7 @@ export function TodayPage() {
                 />
                 <span className="text-lg font-medium">{streak}</span>
                 <span className="text-sm text-muted-foreground">
-                  {streak === 1 ? 'день' : 'дней'} подряд
+                  {plural(streak, 'день', 'дня', 'дней')} подряд
                 </span>
               </div>
             </div>

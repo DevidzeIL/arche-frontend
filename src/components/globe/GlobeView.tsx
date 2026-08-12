@@ -8,6 +8,7 @@ import { noteTypeLabel, noteTypeMeta } from '@/arche/noteTypes';
 import { formatYear } from '@/arche/timeSpan';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { plural } from '@/lib/plural';
 import { GlobeCanvas, type GlobeArc, type GlobeMarker } from './GlobeCanvas';
 
 /** За сколько секунд «проигрывается» вся история */
@@ -259,7 +260,7 @@ export function GlobeView() {
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {selected.geo.scale === 'region' ? 'Регион' : 'Город'} ·{' '}
                 {selectedNotes.length}{' '}
-                {selectedNotes.length === 1 ? 'заметка' : 'заметок'}
+                {plural(selectedNotes.length, 'заметка', 'заметки', 'заметок')}
               </p>
             </div>
             <Button

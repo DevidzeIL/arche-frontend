@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint:vault": "node scripts/lint-vault.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

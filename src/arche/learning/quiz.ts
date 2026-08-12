@@ -95,7 +95,37 @@ function distractors(
   const sameType = pool.filter((n) => n.type === correct.type);
   if (sameType.length >= count) pool = sameType;
 
-  return sample(pool, count);
+  return sampleNearInTime(pool, correct, count);
+}
+
+/**
+ * Выбор неверных вариантов рядом по времени.
+ *
+ * Совпадения типа мало: если правильный ответ — античная концепция,
+ * а варианты набраны по всей истории, отвечать можно не зная материала,
+ * а просто узнав, что три названия «из другого времени». Берём вдвое
+ * больше ближайших по эпохе кандидатов и тасуем уже их — вопрос
+ * перестаёт решаться по одному звучанию названия.
+ */
+function sampleNearInTime(
+  pool: KnowledgeNode[],
+  correct: KnowledgeNode,
+  count: number
+): KnowledgeNode[] {
+  const year = correct.time?.displayYear;
+  if (year === undefined || pool.length <= count) return sample(pool, count);
+
+  const dated = pool.filter((n) => n.time);
+  if (dated.length < count) return sample(pool, count);
+
+  const near = [...dated]
+    .sort(
+      (a, b) =>
+        Math.abs(a.time!.displayYear - year) - Math.abs(b.time!.displayYear - year)
+    )
+    .slice(0, Math.max(count, count * 3));
+
+  return sample(near, count);
 }
 
 function nodeOptions(correct: KnowledgeNode, wrong: KnowledgeNode[]): QuizOption[] {
@@ -222,10 +252,20 @@ function makeChronoQuestion(
 ): QuizQuestion | null {
   if (!anchor.time) return null;
 
+  // Кандидаты берутся из ближайших по времени, а не из всей истории:
+  // иначе «что раньше» решается взглядом на разброс эпох, без знания
+  const candidates = pool
+    .filter((n) => n.time && n.id !== anchor.id)
+    .sort(
+      (a, b) =>
+        Math.abs(a.time!.startYear - anchor.time!.startYear) -
+        Math.abs(b.time!.startYear - anchor.time!.startYear)
+    )
+    .slice(0, 12);
+
   const picked: KnowledgeNode[] = [anchor];
-  for (const candidate of shuffle(pool)) {
+  for (const candidate of shuffle(candidates)) {
     if (picked.length >= 4) break;
-    if (!candidate.time || candidate.id === anchor.id) continue;
     // Годы должны заметно различаться, иначе вопрос спорный
     if (picked.every((p) => Math.abs(p.time!.startYear - candidate.time!.startYear) >= 20)) {
       picked.push(candidate);

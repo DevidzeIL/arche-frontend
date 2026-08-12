@@ -13,6 +13,13 @@ import type { ArcheNote } from '@/arche/types';
 
 const PREVIEW_COUNT = 9;
 
+/** Пустая строка и мусор в адресе означают «граница не задана» */
+function numberParam(raw: string | null): number | null {
+  if (raw === null || raw.trim() === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
 export function HomePage() {
   const notes = useArcheStore((state) => state.notes);
   const navigate = useNavigate();
@@ -24,6 +31,8 @@ export function HomePage() {
       query: searchParams.get('q') ?? '',
       types: searchParams.getAll('type'),
       domains: searchParams.getAll('domain'),
+      fromYear: numberParam(searchParams.get('from')),
+      toYear: numberParam(searchParams.get('to')),
     }),
     [searchParams]
   );
@@ -34,6 +43,8 @@ export function HomePage() {
       if (next.query.trim()) params.set('q', next.query);
       next.types.forEach((type) => params.append('type', type));
       next.domains.forEach((domain) => params.append('domain', domain));
+      if (next.fromYear !== null) params.set('from', String(next.fromYear));
+      if (next.toYear !== null) params.set('to', String(next.toYear));
       setSearchParams(params, { replace: true });
     },
     [setSearchParams]

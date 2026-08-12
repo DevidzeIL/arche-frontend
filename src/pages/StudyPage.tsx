@@ -6,6 +6,7 @@ import {
   Download,
   Flame,
   Pencil,
+  RotateCcw,
   Trophy,
   Upload,
 } from 'lucide-react';
@@ -20,16 +21,23 @@ import {
 } from '@/arche/learning/progressStore';
 import { buildCourses } from '@/arche/learning/curriculum';
 import { listAuthoredQuizzes } from '@/arche/learning/authoredQuiz';
+import { findWeakSpots } from '@/arche/learning/weakSpots';
 import { firstImageOf } from '@/arche/images';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { plural } from '@/lib/plural';
 
 export function StudyPage() {
   const notes = useArcheStore((s) => s.notes);
+  const graph = useArcheStore((s) => s.knowledgeGraph);
   const progress = useProgressStore();
 
   const courses = useMemo(() => buildCourses(notes), [notes]);
   const quizzes = useMemo(() => listAuthoredQuizzes(notes), [notes]);
+  const weakSpots = useMemo(
+    () => findWeakSpots({ notes, graph, cards: progress.cards }),
+    [notes, graph, progress.cards]
+  );
 
   const doneToday = answeredToday(progress.history);
   const level = levelFromXp(progress.xp);
@@ -252,6 +260,59 @@ export function StudyPage() {
               </section>
             );
           })
+        )}
+
+        {/* Что не запоминается: данные копились в карточках и не показывались */}
+        {weakSpots.length > 0 && (
+          <section className="mb-10">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="font-serif text-2xl">Что даётся тяжело</h2>
+                <p className="text-sm text-muted-foreground">
+                  Темы, которые чаще всего забываются. Перечитайте — или прогоните
+                  отдельной стопкой.
+                </p>
+              </div>
+              <Button asChild size="sm">
+                <Link to="/study/today?repeat=weak">
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                  Повторить это
+                </Link>
+              </Button>
+            </div>
+
+            <ul className="space-y-2">
+              {weakSpots.slice(0, 6).map((spot) => (
+                <li
+                  key={spot.noteId ?? spot.title}
+                  className="rounded-lg border border-border/40 bg-card/40 p-3"
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    {spot.noteId ? (
+                      <Link
+                        to={`/note/${spot.noteId}`}
+                        className="min-w-0 truncate font-serif text-[15px] hover:underline"
+                      >
+                        {spot.title}
+                      </Link>
+                    ) : (
+                      <span className="font-serif text-[15px]">{spot.title}</span>
+                    )}
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      забыто {spot.lapses} {plural(spot.lapses, 'раз', 'раза', 'раз')}
+                    </span>
+                  </div>
+                  <ul className="mt-1 space-y-0.5">
+                    {spot.cards.slice(0, 2).map((card) => (
+                      <li key={card.cardId} className="truncate text-[13px] text-muted-foreground">
+                        {card.prompt}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {/* Тесты и экзамены */}
