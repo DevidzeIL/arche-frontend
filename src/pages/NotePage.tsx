@@ -4,6 +4,7 @@ import { useArcheStore } from '@/arche/state/store';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PersonPage, WorkPage, ConceptPage, TimePage } from '@/components/pages';
+import { NoteEditor } from '@/components/pages/NoteEditor';
 import { parseMetadata } from '@/components/pages/metadataParser';
 import { MarkdownViewer } from '@/arche/markdown/components';
 import { bodyForDisplay } from '@/arche/excerpt';
@@ -41,6 +42,11 @@ export function NotePage() {
     );
   }
 
+  // Тест — не текст для чтения, а интерактив: ведём в раздел учёбы
+  if (note.type === 'quiz') {
+    return <Navigate to={`/study/quiz/${note.id}`} replace />;
+  }
+
   // Связанные заметки: индекс по названию уже есть в сторе, линейный поиск не нужен
   const relatedNotes = note.links
     .map((linkTitle) => getNoteByTitle(linkTitle))
@@ -51,103 +57,78 @@ export function NotePage() {
   const metadata = parseMetadata(note);
 
   // Выбираем правильный шаблон по типу
-  switch (note.type) {
-    // Тест — не текст для чтения, а интерактив: ведём в раздел учёбы
-    case 'quiz':
-      return <Navigate to={`/study/quiz/${note.id}`} replace />;
+  const template = () => {
+    switch (note.type) {
+      case 'person':
+        return <PersonPage note={note} metadata={metadata as any} relatedNotes={relatedNotes} />;
 
-    case 'person':
-      return (
-        <PersonPage
-          note={note}
-          metadata={metadata as any}
-          relatedNotes={relatedNotes}
-        />
-      );
-    
-    case 'work':
-      return (
-        <WorkPage
-          note={note}
-          metadata={metadata as any}
-          relatedNotes={relatedNotes}
-        />
-      );
-    
-    // Течения (модернизм, романтизм…) устроены как концепции — шаблон подходит
-    case 'concept':
-    case 'culture':
-      return (
-        <ConceptPage
-          note={note}
-          metadata={metadata as any}
-          relatedNotes={relatedNotes}
-        />
-      );
+      case 'work':
+        return <WorkPage note={note} metadata={metadata as any} relatedNotes={relatedNotes} />;
 
-    case 'time':
-    case 'epoch':
-      return (
-        <TimePage
-          note={note}
-          metadata={metadata as any}
-          relatedNotes={relatedNotes}
-        />
-      );
-    
-    default:
-      // Fallback для других типов - используем простой шаблон
-      return (
-        <div className="h-full w-full overflow-y-auto bg-background">
-          <div className="container mx-auto px-6 lg:px-12 py-12 max-w-4xl">
-            <Button
-              variant="ghost"
-              onClick={() => navigate(-1)}
-              className="mb-8 -ml-2"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Назад
-            </Button>
+      // Течения (модернизм, романтизм…) устроены как концепции — шаблон подходит
+      case 'concept':
+      case 'culture':
+        return <ConceptPage note={note} metadata={metadata as any} relatedNotes={relatedNotes} />;
 
-            <article className="space-y-8">
-              <header className="space-y-4 pb-8 border-b border-border/30">
-                <h1 className="text-4xl font-serif font-light text-foreground/95">
-                  {note.title}
-                </h1>
-              </header>
+      case 'time':
+      case 'epoch':
+        return <TimePage note={note} metadata={metadata as any} relatedNotes={relatedNotes} />;
 
-              <div className="prose prose-lg dark:prose-invert max-w-none">
-                <div className="text-base leading-relaxed space-y-6">
-                  <MarkdownViewer content={bodyForDisplay(note)} />
-                </div>
-              </div>
+      default:
+        // Fallback для других типов - используем простой шаблон
+        return (
+          <div className="h-full w-full overflow-y-auto bg-background">
+            <div className="container mx-auto px-6 lg:px-12 py-12 max-w-4xl">
+              <Button variant="ghost" onClick={() => navigate(-1)} className="mb-8 -ml-2">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Назад
+              </Button>
 
-              {relatedNotes.length > 0 && (
-                <section className="pt-8 border-t border-border/30">
-                  <h2 className="text-2xl font-serif mb-6 text-foreground/90">
-                    Связанные
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {relatedNotes.map((relatedNote) => (
-                      <div
-                        key={relatedNote.id}
-                        onClick={() => navigate(`/note/${relatedNote.id}`)}
-                        className="p-4 border border-border/30 rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
-                      >
-                        <h3 className="text-lg font-serif mb-2">{relatedNote.title}</h3>
-                        {relatedNote.plainText && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {relatedNote.plainText.substring(0, 120)}...
-                          </p>
-                        )}
-                      </div>
-                    ))}
+              <article className="space-y-8">
+                <header className="space-y-4 pb-8 border-b border-border/30">
+                  <h1 className="text-4xl font-serif font-light text-foreground/95">
+                    {note.title}
+                  </h1>
+                </header>
+
+                <div className="prose prose-lg dark:prose-invert max-w-none">
+                  <div className="text-base leading-relaxed space-y-6">
+                    <MarkdownViewer content={bodyForDisplay(note)} />
                   </div>
-                </section>
-              )}
-            </article>
+                </div>
+
+                {relatedNotes.length > 0 && (
+                  <section className="pt-8 border-t border-border/30">
+                    <h2 className="text-2xl font-serif mb-6 text-foreground/90">Связанные</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {relatedNotes.map((relatedNote) => (
+                        <div
+                          key={relatedNote.id}
+                          onClick={() => navigate(`/note/${relatedNote.id}`)}
+                          className="p-4 border border-border/30 rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
+                        >
+                          <h3 className="text-lg font-serif mb-2">{relatedNote.title}</h3>
+                          {relatedNote.plainText && (
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {relatedNote.plainText.substring(0, 120)}...
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </article>
+            </div>
           </div>
-        </div>
-      );
-  }
+        );
+    }
+  };
+
+  return (
+    <>
+      {template()}
+      <NoteEditor note={note} />
+    </>
+  );
 }

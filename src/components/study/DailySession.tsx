@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { FlashcardView } from './FlashcardView';
 import { QuizQuestionView } from './QuizQuestionView';
 import type { DailyItem } from '@/arche/learning/daily';
+import type { RecallEntry } from '@/arche/learning/progressStore';
 import { toGrade, type ReviewGrade } from '@/arche/learning/srs';
 
 export interface DailyMiss {
@@ -13,13 +14,21 @@ export interface DailyMiss {
 export interface DailySessionStats {
   answered: number;
   remembered: number;
+  /** Сколько ответов человек написал руками, а не просто оценил */
+  written: number;
   missed: DailyMiss[];
 }
 
 interface DailySessionProps {
   items: DailyItem[];
+  /** Просить письменный ответ там, где он уместен */
+  writeMode?: boolean;
+  /** Прошлые письменные ответы: показываются после сверки */
+  recalls?: Record<string, RecallEntry[]>;
   /** Сразу после ответа: начисляет XP и двигает интервал */
   onAnswer: (cardId: string, result: boolean | ReviewGrade) => void;
+  /** Письменный ответ — сохраняется отдельно от оценки */
+  onRecall?: (cardId: string, text: string, grade: ReviewGrade, noteId?: string) => void;
   onFinish: (stats: DailySessionStats) => void;
 }
 
@@ -31,7 +40,7 @@ function noteIdOf(item: DailyItem): string | undefined {
   return item.kind === 'card' ? item.card.noteId : item.question.noteId;
 }
 
-const emptyStats: DailySessionStats = { answered: 0, remembered: 0, missed: [] };
+const emptyStats: DailySessionStats = { answered: 0, remembered: 0, written: 0, missed: [] };
 
 /**
  * Сессия дня: карточки на воспоминание и вопросы теста вперемешку.
@@ -42,7 +51,14 @@ const emptyStats: DailySessionStats = { answered: 0, remembered: 0, missed: [] }
  * Повторно карточка возвращается только один раз, иначе очередь
  * не закончится никогда.
  */
-export function DailySession({ items, onAnswer, onFinish }: DailySessionProps) {
+export function DailySession({
+  items,
+  writeMode,
+  recalls,
+  onAnswer,
+  onRecall,
+  onFinish,
+}: DailySessionProps) {
   const [queue, setQueue] = useState<DailyItem[]>(items);
   const [index, setIndex] = useState(0);
 
@@ -56,14 +72,19 @@ export function DailySession({ items, onAnswer, onFinish }: DailySessionProps) {
   if (!item) return null;
 
   /** Ответ засчитан: XP, интервал, статистика. Очередь пока не двигается. */
-  const record = (current: DailyItem, result: boolean | ReviewGrade) => {
+  const record = (current: DailyItem, result: boolean | ReviewGrade, written?: string) => {
     const failed = toGrade(result) === 'again';
     onAnswer(current.cardId, result);
+
+    if (written?.trim()) {
+      onRecall?.(current.cardId, written, toGrade(result), noteIdOf(current));
+    }
 
     const missed = stats.current.missed.filter((m) => m.cardId !== current.cardId);
     stats.current = {
       answered: stats.current.answered + 1,
       remembered: stats.current.remembered + (failed ? 0 : 1),
+      written: stats.current.written + (written?.trim() ? 1 : 0),
       missed: failed
         ? [...missed, { cardId: current.cardId, noteId: noteIdOf(current), prompt: promptOf(current) }]
         : missed,
@@ -86,6 +107,11 @@ export function DailySession({ items, onAnswer, onFinish }: DailySessionProps) {
     setIndex((i) => i + 1);
   };
 
+  const previousRecall = (cardId: string): RecallEntry | undefined => {
+    const entries = recalls?.[cardId];
+    return entries && entries.length > 0 ? entries[entries.length - 1] : undefined;
+  };
+
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5">
       <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -106,8 +132,10 @@ export function DailySession({ items, onAnswer, onFinish }: DailySessionProps) {
           key={`${item.cardId}-${index}`}
           card={item.card}
           isNew={item.isNew}
-          onGrade={(grade) => {
-            record(item, grade);
+          writeMode={writeMode}
+          previous={previousRecall(item.cardId)}
+          onGrade={(grade, written) => {
+            record(item, grade, written);
             advance(item, grade === 'again');
           }}
         />

@@ -1,20 +1,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ArcheNote, AppSettings } from '../types';
-import { loadNotes } from '../parser';
+import { loadNotes, parseNote } from '../parser';
 import { buildKnowledgeGraph, type KnowledgeGraph } from '../knowledge';
 
 export { normalizeTitle } from '../normalize';
 import { normalizeTitle } from '../normalize';
 
-interface ArcheStore {
+/** Всё, что пересчитывается по списку заметок */
+interface NoteIndex {
   notes: ArcheNote[];
   notesById: Map<string, ArcheNote>;
   notesByTitle: Map<string, ArcheNote>;
-  /** noteId -> заметки, которые на неё ссылаются */
   backlinks: Map<string, ArcheNote[]>;
-  /** Граф знаний строится один раз при загрузке: он нужен и карте, и страницам заметок */
   knowledgeGraph: KnowledgeGraph;
+}
+
+interface ArcheStore extends NoteIndex {
   loaded: boolean;
 
   // Settings
@@ -22,6 +24,17 @@ interface ArcheStore {
 
   // Actions
   loadNotes: () => Promise<void>;
+  /**
+   * Заменить одну заметку разобранным содержимым файла.
+   *
+   * Нужно после правки из редактора: файл уже записан, и страница должна
+   * показать новый текст сразу. Индексы и граф пересобираются целиком —
+   * при полутора сотнях заметок это доли миллисекунды, а частичное
+   * обновление обратных ссылок пришлось бы держать в голове вечно.
+   *
+   * Возвращает false, если файл перестал разбираться.
+   */
+  replaceNote: (path: string, rawContent: string) => boolean;
   setTheme: (theme: 'light' | 'dark') => void;
   /** Запомнить, что заметку открывали: из этого строится «недавнее» */
   rememberVisit: (noteId: string) => void;
@@ -51,49 +64,55 @@ const defaultSettings = (): AppSettings => ({
   recent: [],
 });
 
+function indexNotes(notes: ArcheNote[]): NoteIndex {
+  const notesById = new Map<string, ArcheNote>();
+  const notesByTitle = new Map<string, ArcheNote>();
+
+  notes.forEach((note) => {
+    notesById.set(note.id, note);
+    // Индекс по нормализованному title для строгого матчинга
+    notesByTitle.set(normalizeTitle(note.title), note);
+  });
+
+  // Обратные ссылки считаем один раз при загрузке:
+  // иначе каждый вызов getBacklinks — полный проход по всем заметкам
+  const backlinks = new Map<string, ArcheNote[]>();
+  notes.forEach((note) => {
+    note.links.forEach((linkTitle) => {
+      const target = notesByTitle.get(normalizeTitle(linkTitle));
+      if (!target || target.id === note.id) return;
+      const list = backlinks.get(target.id) ?? [];
+      if (!list.some((n) => n.id === note.id)) list.push(note);
+      backlinks.set(target.id, list);
+    });
+  });
+
+  return { notes, notesById, notesByTitle, backlinks, knowledgeGraph: buildKnowledgeGraph(notes) };
+}
+
 export const useArcheStore = create<ArcheStore>()(
   persist(
     (set, get) => ({
-      notes: [],
-      notesById: new Map(),
-      notesByTitle: new Map(),
-      backlinks: new Map(),
-      knowledgeGraph: buildKnowledgeGraph([]),
+      ...indexNotes([]),
       loaded: false,
       settings: defaultSettings(),
 
       loadNotes: async () => {
         const notes = await loadNotes();
-        const notesById = new Map<string, ArcheNote>();
-        const notesByTitle = new Map<string, ArcheNote>();
+        set({ ...indexNotes(notes), loaded: true });
+      },
 
-        notes.forEach((note) => {
-          notesById.set(note.id, note);
-          // Индекс по нормализованному title для строгого матчинга
-          notesByTitle.set(normalizeTitle(note.title), note);
-        });
+      replaceNote: (path, rawContent) => {
+        const parsed = parseNote(path, rawContent);
+        if (!parsed) return false;
 
-        // Обратные ссылки считаем один раз при загрузке:
-        // иначе каждый вызов getBacklinks — полный проход по всем заметкам
-        const backlinks = new Map<string, ArcheNote[]>();
-        notes.forEach((note) => {
-          note.links.forEach((linkTitle) => {
-            const target = notesByTitle.get(normalizeTitle(linkTitle));
-            if (!target || target.id === note.id) return;
-            const list = backlinks.get(target.id) ?? [];
-            if (!list.some((n) => n.id === note.id)) list.push(note);
-            backlinks.set(target.id, list);
-          });
-        });
+        const current = get().notes;
+        const at = current.findIndex((n) => n.path === path);
+        const notes =
+          at >= 0 ? current.map((n, i) => (i === at ? parsed : n)) : [...current, parsed];
 
-        set({
-          notes,
-          notesById,
-          notesByTitle,
-          backlinks,
-          knowledgeGraph: buildKnowledgeGraph(notes),
-          loaded: true,
-        });
+        set(indexNotes(notes));
+        return true;
       },
 
       setTheme: (theme) => {

@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { NoteConnections } from './NoteConnections';
 import { NoteFlashcards } from './NoteFlashcards';
+import { NoteRecalls } from './NoteRecalls';
 import { LessonNav } from './LessonNav';
+import { NoteReading } from './NoteReading';
 import { MarkdownViewer } from '@/arche/markdown/components';
 import { bodyForDisplay } from '@/arche/excerpt';
 import { ArcheNote } from '@/arche/types';
@@ -197,7 +199,11 @@ export function PersonPage({ note, metadata, relatedNotes }: PersonPageProps) {
         
         <NoteFlashcards note={note} />
 
+        <NoteRecalls note={note} />
+
         <LessonNav note={note} />
+
+        <NoteReading note={note} />
 
         <NoteConnections note={note} />
 

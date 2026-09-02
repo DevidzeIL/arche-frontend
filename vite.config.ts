@@ -2,8 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
-import { readdirSync, statSync, mkdirSync, copyFileSync, existsSync } from 'fs'
+import { readdirSync, statSync, mkdirSync, copyFileSync, existsSync, writeFileSync } from 'fs'
 import { fileURLToPath } from 'url'
+import { archeVaultWritePlugin } from './vite/vault-write'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -156,7 +157,7 @@ const pwaPlugin = VitePWA({
 })
 
 export default defineConfig({
-  plugins: [react(), archeVaultStaticPlugin(), pwaPlugin],
+  plugins: [react(), archeVaultStaticPlugin(), archeVaultWritePlugin(), pwaPlugin],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

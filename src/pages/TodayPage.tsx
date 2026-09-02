@@ -8,6 +8,7 @@ import {
   Flame,
   GraduationCap,
   Layers,
+  PenLine,
   Play,
   RotateCcw,
   Sparkles,
@@ -61,6 +62,10 @@ export function TodayPage() {
   const setDailyGoal = useProgressStore((s) => s.setDailyGoal);
   const recordAnswer = useProgressStore((s) => s.recordAnswer);
   const markLessonRead = useProgressStore((s) => s.markLessonRead);
+  const writeMode = useProgressStore((s) => s.writeMode);
+  const setWriteMode = useProgressStore((s) => s.setWriteMode);
+  const recalls = useProgressStore((s) => s.recalls);
+  const saveRecall = useProgressStore((s) => s.saveRecall);
   const pruneCards = useProgressStore((s) => s.pruneCards);
 
   const [phase, setPhase] = useState<Phase>('idle');
@@ -80,6 +85,7 @@ export function TodayPage() {
       graph,
       cards: state.cards,
       lessonsRead: state.lessonsRead,
+      startChapter: state.startChapter,
       goal: Math.max(0, state.dailyGoal - answeredToday(state.history)),
       newLimit: Math.max(0, newPerDay(state.dailyGoal) - answeredToday(state.newHistory)),
     });
@@ -101,6 +107,7 @@ export function TodayPage() {
       graph,
       cards: state.cards,
       lessonsRead: state.lessonsRead,
+      startChapter: state.startChapter,
       goal: size ?? Math.max(1, remaining),
       newLimit:
         size ?? Math.max(0, newPerDay(state.dailyGoal) - answeredToday(state.newHistory)),
@@ -153,7 +160,10 @@ export function TodayPage() {
         <div className="container mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
           <DailySession
             items={sessionItems}
+            writeMode={writeMode}
+            recalls={recalls}
             onAnswer={recordAnswer}
+            onRecall={saveRecall}
             onFinish={finishSession}
           />
         </div>
@@ -225,6 +235,12 @@ export function TodayPage() {
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
                 {result.remembered} из {result.answered} вспомнили
               </p>
+              {result.written > 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {result.written}{' '}
+                  {plural(result.written, 'ответ', 'ответа', 'ответов')} написано своими словами
+                </p>
+              )}
               {result.missed.length > 0 && (
                 <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                   <p>Вернётся завтра:</p>
@@ -283,6 +299,42 @@ export function TodayPage() {
               )}
             </p>
           </div>
+
+          {/*
+            Письменный режим стоит рядом с кнопкой занятия, а не в настройках
+            внизу: он меняет не мелочь, а то, чем занятие вообще является.
+          */}
+          <button
+            type="button"
+            onClick={() => setWriteMode(!writeMode)}
+            aria-pressed={writeMode}
+            className="mt-4 flex w-full items-start gap-3 rounded-lg border border-border/40 px-3 py-2.5 text-left transition-colors hover:border-primary/50"
+          >
+            <span
+              className={cn(
+                'mt-0.5 flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors',
+                writeMode ? 'bg-primary' : 'bg-border'
+              )}
+            >
+              <span
+                className={cn(
+                  'h-3 w-3 rounded-full bg-background transition-transform',
+                  writeMode && 'translate-x-3'
+                )}
+              />
+            </span>
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                <PenLine className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                Отвечать своими словами
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {writeMode
+                  ? 'Перед ответом нужно написать объяснение. Дольше — зато узнавание перестаёт выдавать себя за знание'
+                  : 'Ответ формулируется про себя: быстрее, но себя легко переоценить'}
+              </span>
+            </span>
+          </button>
         </header>
 
         {/* Заметка дня */}

@@ -266,3 +266,14 @@ export function buildDeck(notes: ArcheNote[], graph: KnowledgeGraph): Map<string
 export function isFlashcardId(cardId: string): boolean {
   return cardId.startsWith('fc:');
 }
+
+/**
+ * Каким карточкам имеет смысл предлагать письменный ответ.
+ *
+ * Датировке и авторству — нет: там ответ в два слова, и просьба
+ * набрать его руками превращает занятие в канцелярию. Письменный
+ * режим стоит там, где ответ надо построить.
+ */
+export function invitesWriting(kind: FlashcardKind): boolean {
+  return kind === 'define' || kind === 'authored' || kind === 'origin' || kind === 'legacy';
+}

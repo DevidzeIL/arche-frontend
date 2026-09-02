@@ -31,10 +31,28 @@ function stripInlineMarkup(text: string): string {
 
 /**
  * Убирает раздел вместе с его содержимым (до следующего заголовка того же уровня).
+ *
+ * Раньше здесь был регексп с `(?=^##\s|\z)`. В JavaScript якоря `\z` не
+ * существует — это просто буква «z», — поэтому ПОСЛЕДНИЙ раздел файла
+ * не вырезался никогда: у заметок-мест на странице оставался сырой список
+ * «Связи», у остальных — «Источники». Построчный разбор надёжнее и заодно
+ * не требует экранировать заголовок вроде «Источники / Литература».
  */
 function stripSection(body: string, heading: string): string {
-  const pattern = new RegExp(`^##\\s+${heading}\\s*$[\\s\\S]*?(?=^##\\s|\\z)`, 'gim');
-  return body.replace(pattern, '');
+  const target = heading.trim().toLowerCase();
+  const out: string[] = [];
+  let skipping = false;
+
+  for (const line of body.split('\n')) {
+    const match = line.match(/^##\s+(.+?)\s*$/);
+    if (match) {
+      skipping = match[1].trim().toLowerCase() === target;
+      if (skipping) continue;
+    }
+    if (!skipping) out.push(line);
+  }
+
+  return out.join('\n');
 }
 
 /**
@@ -48,7 +66,18 @@ function stripSection(body: string, heading: string): string {
  * читаются как опечатка, а показывает их отдельный блок.
  */
 export function bodyForDisplay(note: ArcheNote): string {
-  return stripSection(stripSection(note.body, 'Связи'), 'Карточки')
+  // Литература показывается отдельным блоком: с разделением на
+  // первоисточник и пересказ, со ссылками и отметкой «прочитано»
+  const sections = [
+    'Связи',
+    'Карточки',
+    'Источники / Литература',
+    'Источники',
+    'Литература',
+    'Что читать',
+  ];
+  return sections
+    .reduce((body, heading) => stripSection(body, heading), note.body)
     // Заголовок первого уровня повторяет название, которое шаблон уже показал
     .replace(/^\s*#\s+.+$/m, '')
     .trimEnd();

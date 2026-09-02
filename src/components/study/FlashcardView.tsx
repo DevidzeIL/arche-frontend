@@ -1,16 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Eye, Sparkles } from 'lucide-react';
+import { ExternalLink, Eye, PenLine, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { Flashcard } from '@/arche/learning/flashcards';
+import { invitesWriting, type Flashcard } from '@/arche/learning/flashcards';
+import type { RecallEntry } from '@/arche/learning/progressStore';
 import { GRADE_META, type ReviewGrade } from '@/arche/learning/srs';
 
 interface FlashcardViewProps {
   card: Flashcard;
   /** Впервые встречается — стоит сказать об этом, чтобы «не помню» не пугало */
   isNew?: boolean;
-  onGrade: (grade: ReviewGrade) => void;
+  /** Просить письменный ответ, а не «ответьте про себя» */
+  writeMode?: boolean;
+  /** Что человек писал по этой карточке в прошлый раз */
+  previous?: RecallEntry;
+  onGrade: (grade: ReviewGrade, written?: string) => void;
 }
 
 const GRADES: ReviewGrade[] = ['again', 'hard', 'good', 'easy'];
@@ -22,40 +27,67 @@ const GRADE_STYLE: Record<ReviewGrade, string> = {
   easy: 'border-sky-500/50 hover:bg-sky-500/10 text-sky-600 dark:text-sky-400',
 };
 
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+}
+
 /**
  * Карточка на воспоминание: вопрос → пауза → ответ → честная самооценка.
  *
  * Пауза здесь — не украшение. Оценка ставится только после того, как
- * ответ уже сформулирован про себя; иначе карточка вырождается
- * в перечитывание, а оно почти ничего не даёт.
+ * ответ уже сформулирован; иначе карточка вырождается в перечитывание,
+ * а оно почти ничего не даёт.
+ *
+ * В письменном режиме ответ формулируется не про себя, а в поле ввода.
+ * Разница не косметическая: «про себя» легко принять смутное узнавание
+ * за знание — перевёрнутая карточка всегда выглядит знакомой. Написанный
+ * текст этого не позволяет: пробелы видно сразу, и видно их вам, а не
+ * приложению.
  *
  * Состояние сбрасывается через key={card.cardId} снаружи.
  */
-export function FlashcardView({ card, isNew, onGrade }: FlashcardViewProps) {
+export function FlashcardView({ card, isNew, writeMode, previous, onGrade }: FlashcardViewProps) {
   const [revealed, setRevealed] = useState(false);
+  const [written, setWritten] = useState('');
+  const input = useRef<HTMLTextAreaElement>(null);
+
+  const asks = Boolean(writeMode) && invitesWriting(card.kind);
+
+  const reveal = () => {
+    setRevealed(true);
+    // Оценки ставятся цифрами — с фокусом в поле ввода они бы просто печатались
+    input.current?.blur();
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
+      const typing = target !== null && /^(INPUT|TEXTAREA)$/.test(target.tagName);
+
+      if (!revealed && typing && (e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        reveal();
+        return;
+      }
+      if (typing) return;
 
       if (!revealed && (e.code === 'Space' || e.key === 'Enter')) {
         e.preventDefault();
-        setRevealed(true);
+        reveal();
         return;
       }
       if (revealed) {
         const index = Number(e.key) - 1;
         if (index >= 0 && index < GRADES.length) {
           e.preventDefault();
-          onGrade(GRADES[index]);
+          onGrade(GRADES[index], written);
         }
       }
     };
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [revealed, onGrade]);
+  }, [revealed, onGrade, written]);
 
   return (
     <div className="space-y-5">
@@ -74,8 +106,40 @@ export function FlashcardView({ card, isNew, onGrade }: FlashcardViewProps) {
 
         <p className="font-serif text-xl leading-relaxed sm:text-2xl">{card.front}</p>
 
+        {asks && !revealed && (
+          <div className="mt-5">
+            <textarea
+              ref={input}
+              autoFocus
+              value={written}
+              onChange={(e) => setWritten(e.target.value)}
+              placeholder="Объясните своими словами…"
+              rows={4}
+              className={cn(
+                'w-full resize-none rounded-lg border border-border/50 bg-background/60 px-3 py-2.5',
+                'text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground/60',
+                'focus:border-primary/50'
+              )}
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Хоть как — важно построить фразу, а не вспомнить формулировку.
+              Пропустить тоже можно.
+            </p>
+          </div>
+        )}
+
         {revealed && (
           <div className="mt-5 border-t border-border/40 pt-5">
+            {written.trim() && (
+              <div className="mb-5 rounded-lg border border-border/40 bg-background/40 p-3">
+                <p className="mb-1 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <PenLine className="h-3 w-3" aria-hidden />
+                  Вы написали
+                </p>
+                <p className="whitespace-pre-line text-[15px] leading-relaxed">{written.trim()}</p>
+              </div>
+            )}
+
             <p className="whitespace-pre-line text-[15px] leading-relaxed">{card.back}</p>
 
             {card.details && card.details.length > 0 && (
@@ -86,6 +150,17 @@ export function FlashcardView({ card, isNew, onGrade }: FlashcardViewProps) {
                   </li>
                 ))}
               </ul>
+            )}
+
+            {previous && (
+              <div className="mt-4 rounded-lg border border-dashed border-border/50 p-3">
+                <p className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  {formatDay(previous.at)} вы объясняли это так
+                </p>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                  {previous.text}
+                </p>
+              </div>
             )}
 
             <Link
@@ -106,7 +181,7 @@ export function FlashcardView({ card, isNew, onGrade }: FlashcardViewProps) {
               <button
                 key={grade}
                 type="button"
-                onClick={() => onGrade(grade)}
+                onClick={() => onGrade(grade, written)}
                 className={cn(
                   'rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
                   GRADE_STYLE[grade]
@@ -125,12 +200,14 @@ export function FlashcardView({ card, isNew, onGrade }: FlashcardViewProps) {
         </div>
       ) : (
         <div className="text-center">
-          <Button onClick={() => setRevealed(true)} size="lg" data-reveal>
+          <Button onClick={reveal} size="lg" data-reveal>
             <Eye className="mr-2 h-4 w-4" aria-hidden />
-            Показать ответ
+            {asks && written.trim() ? 'Сверить' : 'Показать ответ'}
           </Button>
           <p className="mt-2 text-xs text-muted-foreground">
-            Сначала ответьте про себя. Пробел — показать
+            {asks
+              ? 'Ctrl+Enter — показать ответ'
+              : 'Сначала ответьте про себя. Пробел — показать'}
           </p>
         </div>
       )}

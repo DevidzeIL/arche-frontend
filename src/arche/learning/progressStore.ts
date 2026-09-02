@@ -18,7 +18,7 @@ import { reviewCard, toGrade, type CardState, type ReviewGrade } from './srs';
 export const PASS_SCORE = 0.8;
 
 /** Версия формата данных: с ней сверяется импорт */
-export const DATA_VERSION = 3;
+export const DATA_VERSION = 5;
 
 /** Сколько карточек в день по умолчанию — примерно пять минут */
 export const DEFAULT_DAILY_GOAL = 15;
@@ -35,6 +35,24 @@ interface Totals {
   answered: number;
   correct: number;
 }
+
+/**
+ * Что человек написал, когда его попросили объяснить своими словами.
+ *
+ * Хранится не ради статистики, а ради сравнения: через полгода стоит
+ * увидеть, как менялась собственная формулировка про Канта. Поэтому
+ * запись держит и текст, и оценку, которую человек поставил себе сам.
+ */
+export interface RecallEntry {
+  at: string;
+  text: string;
+  grade: ReviewGrade;
+  /** Чтобы страница заметки могла собрать свои ответы без всей колоды */
+  noteId?: string;
+}
+
+/** Сколько попыток на карточку помним: последняя, позапрошлая и ещё одна */
+const RECALL_KEEP = 3;
 
 interface ProgressData {
   version: number;
@@ -57,8 +75,28 @@ interface ProgressData {
   newHistory: Record<string, number>;
   /** noteId -> дата первого прочтения */
   lessonsRead: Record<string, string>;
+  /** id записи литературы -> дата отметки «прочитано» */
+  readingDone: Record<string, string>;
+  /**
+   * С какой оси начинать курс. null — с начала.
+   * Вектор устроен как цепочка, но входить в него можно не только
+   * с мифа: интерес чаще начинается с XX века, и заставлять человека
+   * пройти две тысячи лет ради него — верный способ бросить.
+   */
+  startChapter: number | null;
   /** id фрагмента ленты -> дата прочтения; лента по нему не гоняет одно и то же */
   feedSeen: Record<string, string>;
+  /**
+   * Отвечать письменно, а не «про себя».
+   *
+   * Формулировать ответ руками дороже по времени, но это единственный
+   * режим, в котором видна разница между «узнаю» и «могу объяснить».
+   * Узнавание обманывает: перевёрнутая карточка почти всегда кажется
+   * знакомой, и самооценка уезжает вверх.
+   */
+  writeMode: boolean;
+  /** cardId -> последние письменные ответы, свежие в конце */
+  recalls: Record<string, RecallEntry[]>;
   chapters: Record<string, ChapterProgress>;
   cards: Record<string, CardState>;
   totals: Totals;
@@ -68,8 +106,16 @@ interface ProgressActions {
   rename(name: string): void;
   setDailyGoal(goal: number): void;
   markLessonRead(noteId: string): void;
+  /** Отметить прочитанной запись из списка литературы (или снять отметку) */
+  toggleReading(itemId: string): void;
+  /** С какой оси начинать; null — с начала вектора */
+  setStartChapter(index: number | null): void;
   /** Фрагмент ленты дочитан и ушёл вверх экрана */
   markFragmentRead(fragmentId: string): void;
+  /** Отвечать письменно или про себя */
+  setWriteMode(on: boolean): void;
+  /** Сохранить письменный ответ по карточке */
+  saveRecall(cardId: string, text: string, grade: ReviewGrade, noteId?: string): void;
   /** Завести карточки заметки в колоду со сроком «сегодня» */
   seedCards(cardIds: string[]): void;
   /** Ответ на вопрос теста (boolean) или самооценка карточки (ReviewGrade) */
@@ -150,7 +196,11 @@ function initialData(): ProgressData {
     history: {},
     newHistory: {},
     lessonsRead: {},
+    readingDone: {},
+    startChapter: null,
     feedSeen: {},
+    writeMode: true,
+    recalls: {},
     chapters: {},
     cards: {},
     totals: { answered: 0, correct: 0 },
@@ -162,6 +212,8 @@ export const XP = {
   chapterCompleted: 30,
   /** Фрагмент ленты — меньше карточки: прочитать легче, чем вспомнить */
   fragmentRead: 2,
+  /** Надбавка за письменный ответ: сформулировать дороже, чем узнать */
+  recallWritten: 3,
 } as const;
 
 /** XP за карточку зависит от честности самооценки: «легко» стоит дороже «не помню» */
@@ -184,7 +236,11 @@ const PERSISTED_KEYS: (keyof ProgressData)[] = [
   'history',
   'newHistory',
   'lessonsRead',
+  'readingDone',
+  'startChapter',
   'feedSeen',
+  'writeMode',
+  'recalls',
   'chapters',
   'cards',
   'totals',
@@ -224,6 +280,24 @@ export const useProgressStore = create<ProgressStore>()(
         });
       },
 
+      toggleReading: (itemId) => {
+        set((s) => {
+          const readingDone = { ...s.readingDone };
+          if (readingDone[itemId]) {
+            delete readingDone[itemId];
+            return { readingDone };
+          }
+          // Прочитанная книга — тоже занятие: стрик она продлевает,
+          // но в дневную норму карточек не лезет
+          return {
+            ...touched(s),
+            readingDone: { ...readingDone, [itemId]: new Date().toISOString() },
+          };
+        });
+      },
+
+      setStartChapter: (index) => set({ startChapter: index }),
+
       markFragmentRead: (fragmentId) => {
         set((s) => {
           if (s.feedSeen[fragmentId]) return {};
@@ -233,6 +307,24 @@ export const useProgressStore = create<ProgressStore>()(
             feedSeen: { ...s.feedSeen, [fragmentId]: new Date().toISOString() },
           };
         });
+      },
+
+      setWriteMode: (on) => set({ writeMode: on }),
+
+      saveRecall: (cardId, text, grade, noteId) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+
+        set((s) => ({
+          xp: s.xp + XP.recallWritten,
+          recalls: {
+            ...s.recalls,
+            [cardId]: [
+              ...(s.recalls[cardId] ?? []),
+              { at: new Date().toISOString(), text: trimmed, grade, noteId },
+            ].slice(-RECALL_KEEP),
+          },
+        }));
       },
 
       // Карточки заводятся со сроком «сейчас», но в сегодняшнюю норму попадут
@@ -355,4 +447,25 @@ export function activityDays(
     days.push({ day, count: history[day] ?? 0 });
   }
   return days;
+}
+
+/**
+ * Письменные ответы по одной заметке, свежие первыми.
+ *
+ * Собирается перебором: карточек на заметку единицы, а держать
+ * отдельный индекс значит следить за его согласованностью.
+ */
+export function recallsOfNote(
+  recalls: Record<string, RecallEntry[]>,
+  noteId: string
+): Array<RecallEntry & { cardId: string }> {
+  const found: Array<RecallEntry & { cardId: string }> = [];
+
+  for (const [cardId, entries] of Object.entries(recalls)) {
+    for (const entry of entries) {
+      if (entry.noteId === noteId) found.push({ ...entry, cardId });
+    }
+  }
+
+  return found.sort((a, b) => b.at.localeCompare(a.at));
 }

@@ -94,14 +94,30 @@ export function curriculumOrder(notes: ArcheNote[]): ArcheNote[] {
   return [...ordered, ...rest];
 }
 
+/**
+ * Заметка дня.
+ *
+ * startChapter сдвигает точку входа: вектор устроен как цепочка, но
+ * начинать его можно не с мифа. Оси до выбранной пропускаются, а не
+ * выбрасываются — дойдя до конца, лента возвращается к пропущенному.
+ */
 function buildLessonOfDay(
   notes: ArcheNote[],
-  lessonsRead: Record<string, string>
+  lessonsRead: Record<string, string>,
+  startChapter: number | null
 ): LessonOfDay | null {
   const byId = new Map(notes.map((n) => [n.id, n]));
 
   for (const course of buildCourses(notes)) {
-    for (const chapter of course.chapters) {
+    const ordered =
+      startChapter === null
+        ? course.chapters
+        : [
+            ...course.chapters.filter((ch) => ch.index >= startChapter),
+            ...course.chapters.filter((ch) => ch.index < startChapter),
+          ];
+
+    for (const chapter of ordered) {
       for (const lesson of chapter.lessons) {
         if (lessonsRead[lesson.noteId]) continue;
         const note = byId.get(lesson.noteId);
@@ -155,6 +171,8 @@ export interface DailyPlanInput {
   graph: KnowledgeGraph;
   cards: Record<string, CardState>;
   lessonsRead: Record<string, string>;
+  /** С какой оси начинать курс; null — с начала */
+  startChapter?: number | null;
   /** Сколько карточек показать всего */
   goal: number;
   /**
@@ -172,6 +190,7 @@ export function buildDailyPlan({
   graph,
   cards,
   lessonsRead,
+  startChapter = null,
   goal,
   newLimit,
   now = new Date(),
@@ -234,7 +253,7 @@ export function buildDailyPlan({
     newCount: freshSlice.length,
     dueTotal: due.length,
     newAvailable: Math.max(0, freshAll.length - freshSlice.length),
-    lesson: buildLessonOfDay(notes, lessonsRead),
+    lesson: buildLessonOfDay(notes, lessonsRead, startChapter),
     deckSize: deck.size,
     seenSize: Object.keys(cards).filter((id) => deck.has(id) || authored.has(id)).length,
     dead,

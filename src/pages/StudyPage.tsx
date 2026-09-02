@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  BookMarked,
   BookOpen,
   CheckCircle2,
   Download,
@@ -132,6 +133,12 @@ export function StudyPage() {
                 />
                 <span className="font-medium">{progress.streak}</span>
               </div>
+              <Button variant="outline" asChild>
+                <Link to="/reading">
+                  <BookMarked className="mr-2 h-4 w-4" aria-hidden />
+                  Что читать
+                </Link>
+              </Button>
               <Button asChild>
                 <Link to="/study/today">
                   <Flame className="mr-2 h-4 w-4" aria-hidden />
@@ -193,6 +200,47 @@ export function StudyPage() {
                       {course.chapters.filter((ch) => progress.chapters[ch.id]?.completedAt).length}{' '}
                       пройдено
                     </p>
+                  </div>
+                </div>
+
+                {/* Вектор — цепочка, но входить в неё можно не с мифа:
+                    интерес чаще начинается с XX века, и заставлять человека
+                    пройти две тысячи лет ради него — способ бросить */}
+                <div className="mb-4 rounded-lg border border-border/40 bg-card/40 p-3">
+                  <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                    С чего начинать ежедневные занятия
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => progress.setStartChapter(null)}
+                      aria-pressed={progress.startChapter === null}
+                      className={cn(
+                        'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                        progress.startChapter === null
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border/50 text-muted-foreground hover:border-primary/50'
+                      )}
+                    >
+                      С начала
+                    </button>
+                    {course.chapters.map((chapter) => (
+                      <button
+                        key={chapter.id}
+                        type="button"
+                        onClick={() => progress.setStartChapter(chapter.index)}
+                        aria-pressed={progress.startChapter === chapter.index}
+                        title={chapter.title}
+                        className={cn(
+                          'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                          progress.startChapter === chapter.index
+                            ? 'border-primary bg-primary/10 text-foreground'
+                            : 'border-border/50 text-muted-foreground hover:border-primary/50'
+                        )}
+                      >
+                        {chapter.ordinal ?? chapter.title}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
