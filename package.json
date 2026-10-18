@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "lint:vault": "node scripts/lint-vault.mjs",
     "borders": "node --max-old-space-size=8192 scripts/build-borders.mjs",
-    "context": "node scripts/build-context.mjs"
+    "context": "node scripts/build-context.mjs",
+    "kb": "node scripts/build-kb.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

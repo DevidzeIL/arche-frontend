@@ -8,6 +8,7 @@ import type { SovereigntySegment } from '@/arche/bordersData';
 import { formatYear } from '@/arche/timeSpan';
 import { Button } from '@/components/ui/button';
 import type { ArcheNote } from '@/arche/types';
+import { NoteNearby } from './PlaceContext';
 
 // Карта тянет d3-geo и очертания суши — текст страницы её не ждёт
 const BordersMiniMap = lazy(() =>
@@ -64,11 +65,11 @@ export function NoteWhere({ note }: { note: ArcheNote }) {
       const end = endYear !== undefined && place.geo.scale === 'city' ? polityOfPlace(place.id, endYear) : null;
       return { place, at, end: end && end.ru !== at?.ru ? end : null };
     });
-    return { year, endYear, rows };
+    return { year, endYear, startYear: time.startYear, rows };
   }, [notes, graph, note.id, note.type]);
 
   if (!data) return null;
-  const { year, endYear, rows } = data;
+  const { year, endYear, startYear, rows } = data;
   const highlight = rows.find((r) => r.at && r.at.src !== 'bg')?.at?.k ?? null;
   const firstCity = rows.find((r) => r.place.geo.scale === 'city') ?? rows[0];
 
@@ -117,6 +118,15 @@ export function NoteWhere({ note }: { note: ArcheNote }) {
           points={rows.map(({ place }) => ({ lon: place.geo.lon, lat: place.geo.lat, label: place.title }))}
         />
       </Suspense>
+
+      {firstCity.place.geo.scale === 'city' && (
+        <NoteNearby
+          lat={firstCity.place.geo.lat}
+          lon={firstCity.place.geo.lon}
+          from={note.type === 'person' ? startYear : Math.round(year) - 10}
+          to={note.type === 'person' ? endYear ?? startYear + 70 : Math.round(year) + 10}
+        />
+      )}
 
       <p className="text-xs text-muted-foreground">
         Границы — реконструкция Cliopatria, упрощённая и приблизительная. Если

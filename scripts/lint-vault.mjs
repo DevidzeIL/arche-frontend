@@ -54,6 +54,7 @@ for (const rel of files) {
     endYear: field('end_year'),
     lat: field('lat'),
     lon: field('lon'),
+    wikidata: field('wikidata'),
   });
 }
 
@@ -77,6 +78,11 @@ for (const note of notes) {
 
   if (note.startYear && note.endYear && Number(note.endYear) < Number(note.startYear)) {
     problems.push(`${note.rel}: интервал перевёрнут (${note.startYear}..${note.endYear})`);
+  }
+
+  // Ручная привязка к Wikidata: опечатка в ней молча отвяжет заметку от справки
+  if (note.wikidata && !/^(Q\d+|none)$/.test(note.wikidata.replace(/^["']|["']$/g, ''))) {
+    problems.push(`${note.rel}: wikidata «${note.wikidata}» — нужен идентификатор вида Q9312 или none`);
   }
 
   if (note.type === 'place' && (!note.lat || !note.lon)) {
@@ -138,6 +144,9 @@ for (const [i, feature] of (patches?.features ?? []).entries()) {
   }
   if (p.polity && !known(p.polity)) problems.push(`${label}: государства «${p.polity}» нет в Cliopatria`);
   if (p.within && !known(p.within)) problems.push(`${label}: объединения «${p.within}» нет в Cliopatria`);
+  if (p.draw !== undefined && typeof p.draw !== 'boolean') {
+    problems.push(`${label}: draw — true или false, без кавычек`);
+  }
 }
 
 const names = readJson(path.join(BORDERS, 'names.json'), '_borders/names.json') ?? {};

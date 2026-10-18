@@ -54,6 +54,11 @@ export const router = createBrowserRouter([
         ...lazyPage(() => import('@/pages/HealthPage'), 'HealthPage'),
       },
       {
+        // Справка из Wikidata: война, течение, религия, государство, человек…
+        path: 'kb/:id',
+        ...lazyPage(() => import('@/pages/KbPage'), 'KbPage'),
+      },
+      {
         path: 'note/:noteId',
         ...lazyPage(() => import('@/pages/NotePage'), 'NotePage'),
       },

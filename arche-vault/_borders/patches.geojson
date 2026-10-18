@@ -26,6 +26,19 @@
     {
       "type": "Feature",
       "properties": {
+        "name": "Athens under Macedon",
+        "ru": "Македонское царство",
+        "polity": "(Macedonian Empire)",
+        "from": -321,
+        "to": -319,
+        "draw": false,
+        "note": "После Ламийской войны в Пирее стоит македонский гарнизон Антипатра, а набор приписывает Афины Пелопоннесскому союзу, распавшемуся за двадцать лет до того."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[23.55, 37.86], [23.92, 37.86], [23.92, 38.10], [23.55, 38.10], [23.55, 37.86]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
         "name": "Republic of Geneva",
         "ru": "Женевская республика",
         "from": 1536,
@@ -33,6 +46,25 @@
         "wikidata": "Q23366230",
         "wikipedia": "Republic of Geneva",
         "note": "Женевы в Cliopatria нет вовсе, город отдан Савойе, а потом Сардинскому королевству. Для Руссо, подписывавшегося «гражданин Женевы», это не мелочь. Годы — от Реформации до присоединения к Франции."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [6.03, 46.27], [6.13, 46.32], [6.25, 46.29], [6.30, 46.22],
+          [6.22, 46.15], [6.07, 46.15], [5.97, 46.20], [6.03, 46.27]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Restored Republic of Geneva",
+        "ru": "Женевская республика",
+        "from": 1814,
+        "to": 1814,
+        "wikidata": "Q23366230",
+        "wikipedia": "Republic of Geneva",
+        "note": "Республику восстановили 31 декабря 1813 года, в 1815-м Женева вошла в Швейцарию. Сардинии город не принадлежал никогда."
       },
       "geometry": {
         "type": "Polygon",
@@ -79,6 +111,461 @@
           [11.58, 50.84], [11.44, 50.88], [11.45, 50.98]
         ]]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "East Prussia in the Kingdom of Prussia",
+        "ru": "Королевство Пруссия",
+        "polity": "Kingdom of Prussia",
+        "from": 1807,
+        "to": 1867,
+        "note": "Набор отдаёт Кёнигсберг Франции, Рейнскому и Германскому союзу. Но после Тильзита Пруссия сохранила Восточную Пруссию, в Рейнский союз не входила, а Восточная Пруссия не входила и в Германский — она была за его границей."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [19.30, 54.40], [19.60, 54.45], [20.00, 54.90], [21.20, 55.30],
+          [22.80, 54.90], [22.80, 54.36], [21.00, 54.32], [19.80, 54.35],
+          [19.30, 54.40]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Königsberg in the Kingdom of Prussia",
+        "ru": "Королевство Пруссия",
+        "polity": "Kingdom of Prussia",
+        "from": 1713,
+        "to": 1757,
+        "draw": false,
+        "note": "С 1701 года это королевство; «Бранденбург-Пруссия» в наборе на 1713–1717 годы — сбой нарезки, а не смена государства."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[20.38, 54.64], [20.64, 54.64], [20.64, 54.78], [20.38, 54.78], [20.38, 54.64]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Königsberg under Russian rule",
+        "ru": "Российская империя",
+        "polity": "Russian Empire",
+        "from": 1758,
+        "to": 1762,
+        "draw": false,
+        "note": "В Семилетнюю войну Восточная Пруссия четыре года была русской, а не один, как в наборе. Прошение о профессуре Кант в 1758 году писал на имя императрицы Елизаветы."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[20.38, 54.64], [20.64, 54.64], [20.64, 54.78], [20.38, 54.78], [20.38, 54.64]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Toruń under the Teutonic Order",
+        "ru": "Тевтонский орден",
+        "polity": "Teutonic Order",
+        "from": 1233,
+        "to": 1453,
+        "draw": false,
+        "note": "Торунь основан рыцарями ордена в 1233 году и оставался орденским до восстания 1454 года — набор отдаёт его Польше раньше на сто с лишним лет."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[18.48, 52.94], [18.72, 52.94], [18.72, 53.08], [18.48, 53.08], [18.48, 52.94]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Toruń in the Kingdom of Poland",
+        "ru": "Королевство Польское",
+        "polity": "Kingdom of Poland",
+        "from": 1454,
+        "to": 1568,
+        "draw": false,
+        "note": "После Тринадцатилетней войны Торунь — город Королевской Пруссии в составе Польши; здесь в 1473 году родился Коперник."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[18.48, 52.94], [18.72, 52.94], [18.72, 53.08], [18.48, 53.08], [18.48, 52.94]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Toruń in the Commonwealth",
+        "ru": "Речь Посполитая",
+        "polity": "Polish-Lithuanian Commonwealth",
+        "from": 1706,
+        "to": 1792,
+        "draw": false,
+        "note": "По первому разделу 1772 года Торунь, как и Гданьск, остался польским; Пруссия забрала его только при втором разделе, в 1793-м."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[18.48, 52.94], [18.72, 52.94], [18.72, 53.08], [18.48, 53.08], [18.48, 52.94]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Toruń in the Duchy of Warsaw",
+        "ru": "Варшавское герцогство",
+        "polity": "Duchy of Warsaw",
+        "from": 1807,
+        "to": 1814,
+        "draw": false,
+        "note": "По Тильзитскому миру Торунь отошёл Варшавскому герцогству и оставался в нём до Венского конгресса."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[18.48, 52.94], [18.72, 52.94], [18.72, 53.08], [18.48, 53.08], [18.48, 52.94]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Toruń in the Kingdom of Prussia",
+        "ru": "Королевство Пруссия",
+        "polity": "Kingdom of Prussia",
+        "from": 1815,
+        "to": 1867,
+        "draw": false,
+        "note": "Западная Пруссия, как и Восточная, в Германский союз не входила."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[18.48, 52.94], [18.72, 52.94], [18.72, 53.08], [18.48, 53.08], [18.48, 52.94]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Toruń in People's Poland",
+        "ru": "Польша",
+        "polity": "Republic of Poland",
+        "from": 1945,
+        "to": 1952,
+        "draw": false,
+        "note": "После войны Торунь — польский город; «СССР» в наборе — граница советского влияния, а не государства."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[18.48, 52.94], [18.72, 52.94], [18.72, 53.08], [18.48, 53.08], [18.48, 52.94]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Wittenberg in the Electorate of Saxony",
+        "ru": "Курфюршество Саксония",
+        "polity": "Electorate of Saxony",
+        "within": "(Holy Roman Empire)",
+        "from": 1700,
+        "to": 1756,
+        "draw": false,
+        "note": "Курфюрст Саксонии был одновременно польским королём, но Саксония в Речь Посполитую не входила — это личная уния, а не одно государство."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[12.53, 51.80], [12.77, 51.80], [12.77, 51.94], [12.53, 51.94], [12.53, 51.80]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Wittenberg in the Kingdom of Prussia",
+        "ru": "Королевство Пруссия",
+        "polity": "Kingdom of Prussia",
+        "from": 1815,
+        "to": 1867,
+        "draw": false,
+        "note": "По решению Венского конгресса Виттенберг отошёл от Саксонии к Пруссии (провинция Саксония)."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[12.53, 51.80], [12.77, 51.80], [12.77, 51.94], [12.53, 51.94], [12.53, 51.80]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Soviet occupation zone of Germany",
+        "ru": "Советская зона оккупации Германии",
+        "from": 1945,
+        "to": 1948,
+        "draw": false,
+        "wikidata": "Q55300",
+        "wikipedia": "Soviet occupation zone in Germany",
+        "note": "Набор рисует Восточную Германию частью СССР. Это была зона оккупации, в 1949 году ставшая ГДР."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[9.9, 50.2], [14.9, 50.8], [14.3, 53.9], [10.8, 54.0], [10.6, 52.2], [9.9, 50.2]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "French occupation zone of Germany",
+        "ru": "Французская зона оккупации Германии",
+        "from": 1945,
+        "to": 1949,
+        "draw": false,
+        "wikidata": "Q55309",
+        "wikipedia": "French occupation zone in Germany",
+        "note": "Набор отдаёт юго-запад Германии Четвёртой республике, хотя это была зона оккупации — до образования ФРГ в 1949 году."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[7.5, 47.55], [9.7, 47.55], [9.6, 48.6], [7.9, 49.1], [7.5, 47.55]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Vienna in the Habsburg Monarchy",
+        "ru": "Габсбургская монархия",
+        "polity": "Habsburg Monarchy",
+        "from": 1516,
+        "to": 1555,
+        "draw": false,
+        "note": "Австрийскими землями правил Фердинанд I, а не испанская ветвь Габсбургов: в 1521–1522 годах братья поделили владения."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[16.20, 48.12], [16.55, 48.12], [16.55, 48.32], [16.20, 48.32], [16.20, 48.12]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Vienna in the Austrian Empire",
+        "ru": "Австрийская империя",
+        "polity": "Austrian Empire",
+        "from": 1805,
+        "to": 1810,
+        "draw": false,
+        "note": "Наполеон дважды занимал Вену, в 1805 и 1809 годах, но город оставался столицей Австрийской империи."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[16.20, 48.12], [16.55, 48.12], [16.55, 48.32], [16.20, 48.32], [16.20, 48.12]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Allied-occupied Austria",
+        "ru": "Австрия под оккупацией союзников",
+        "from": 1945,
+        "to": 1955,
+        "draw": false,
+        "wikidata": "Q596239",
+        "wikipedia": "Allied-occupied Austria",
+        "note": "Вена была поделена между четырьмя державами до Государственного договора 1955 года, а не входила в СССР."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[9.5, 46.4], [17.2, 46.4], [17.2, 49.0], [9.5, 47.6], [9.5, 46.4]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Bohemia in the Habsburg Monarchy",
+        "ru": "Габсбургская монархия",
+        "polity": "Habsburg Monarchy",
+        "from": 1526,
+        "to": 1555,
+        "draw": false,
+        "note": "Чешским королём с 1526 года был Фердинанд I, а не Испания; в 1744 году Прага была занята пруссаками лишь на несколько месяцев."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[14.25, 49.98], [14.60, 49.98], [14.60, 50.18], [14.25, 50.18], [14.25, 49.98]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Prague in the Habsburg Monarchy, 1744",
+        "ru": "Габсбургская монархия",
+        "polity": "Habsburg Monarchy",
+        "from": 1744,
+        "to": 1747,
+        "draw": false
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[14.25, 49.98], [14.60, 49.98], [14.60, 50.18], [14.25, 50.18], [14.25, 49.98]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Prague in the Austrian Empire",
+        "ru": "Австрийская империя",
+        "polity": "Austrian Empire",
+        "from": 1866,
+        "to": 1867,
+        "draw": false,
+        "note": "Германский союз был союзом, а не государством; Чехия оставалась в Австрийской империи до образования Австро-Венгрии."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[14.25, 49.98], [14.60, 49.98], [14.60, 50.18], [14.25, 50.18], [14.25, 49.98]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Protectorate of Bohemia and Moravia",
+        "ru": "Протекторат Богемии и Моравии",
+        "from": 1939,
+        "to": 1944,
+        "draw": false,
+        "wikidata": "Q152750",
+        "wikipedia": "Protectorate of Bohemia and Moravia",
+        "note": "Чехия в 1939–1945 годах — протекторат под властью Германии, а не её часть."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[12.9, 49.0], [18.8, 49.0], [18.8, 50.9], [12.9, 50.9], [12.9, 49.0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Prague in Czechoslovakia",
+        "ru": "Чехословакия",
+        "polity": "Czechoslovakia",
+        "from": 1945,
+        "to": 1990,
+        "draw": false,
+        "note": "Чехословакия была восстановлена в 1945 году и после 1968-го оставалась государством, хоть и с советскими войсками на своей земле. «СССР» в наборе — граница влияния, а не государства."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[14.25, 49.98], [14.60, 49.98], [14.60, 50.18], [14.25, 50.18], [14.25, 49.98]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Paris in the Restoration",
+        "ru": "Королевство Франция",
+        "polity": "Bourbon Kingdom of France",
+        "from": 1814,
+        "to": 1814,
+        "draw": false,
+        "note": "В апреле 1814 года Наполеон отрёкся, на трон вернулись Бурбоны. Великое герцогство Берг в наборе — сбой."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[2.20, 48.78], [2.50, 48.78], [2.50, 48.94], [2.20, 48.94], [2.20, 48.78]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Paris in the Third Republic",
+        "ru": "Третья французская республика",
+        "polity": "French Third Republic",
+        "from": 1871,
+        "to": 1872,
+        "draw": false,
+        "note": "Немецкие войска стояли на северо-востоке Франции до 1873 года, но Париж — город Коммуны, а затем Третьей республики."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[2.20, 48.78], [2.50, 48.78], [2.50, 48.94], [2.20, 48.94], [2.20, 48.78]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "German-occupied France",
+        "ru": "Франция под немецкой оккупацией",
+        "from": 1940,
+        "to": 1944,
+        "draw": false,
+        "wikidata": "Q2748708",
+        "wikipedia": "German military administration in occupied France during World War II",
+        "note": "Северная Франция с Парижем была оккупирована, но в состав Германии не входила."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[-4.8, 46.5], [7.5, 46.5], [7.5, 51.1], [-4.8, 48.9], [-4.8, 46.5]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "County of Holland under the Wittelsbachs",
+        "ru": "Графство Голландия",
+        "polity": "County of Holland",
+        "within": "(Holy Roman Empire)",
+        "from": 1363,
+        "to": 1432,
+        "note": "Голландией правили графы из баварского дома Виттельсбахов, но графство оставалось отдельным владением, а не частью Баварии."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [3.95, 51.85], [4.60, 51.85], [5.10, 52.20], [5.10, 52.60],
+          [5.00, 52.95], [4.70, 52.95], [4.50, 52.40], [4.20, 52.10],
+          [3.95, 51.85]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Holland under Burgundy",
+        "ru": "Герцогство Бургундия",
+        "polity": "Duchy of Burgundy",
+        "within": "(Holy Roman Empire)",
+        "from": 1433,
+        "to": 1449,
+        "note": "В 1433 году Якоба Баварская уступила Голландию Филиппу Доброму — с этого года графство бургундское, а не баварское."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [3.95, 51.85], [4.60, 51.85], [5.10, 52.20], [5.10, 52.60],
+          [5.00, 52.95], [4.70, 52.95], [4.50, 52.40], [4.20, 52.10],
+          [3.95, 51.85]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "German-occupied Netherlands",
+        "ru": "Нидерланды под немецкой оккупацией",
+        "from": 1940,
+        "to": 1944,
+        "draw": false,
+        "wikidata": "Q706454",
+        "wikipedia": "Netherlands in World War II",
+        "note": "Нидерланды были оккупированы, но в состав Германии не входили."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[3.4, 51.3], [7.2, 51.3], [7.2, 53.5], [3.4, 53.5], [3.4, 51.3]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Axis occupation of Greece",
+        "ru": "Греция под оккупацией стран Оси",
+        "from": 1941,
+        "to": 1944,
+        "draw": false,
+        "wikidata": "Q703550",
+        "wikipedia": "Axis occupation of Greece",
+        "note": "Греция была поделена на немецкую, итальянскую и болгарскую зоны оккупации; в состав Германии она не входила."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[20.0, 36.3], [26.4, 36.3], [26.4, 41.0], [20.0, 41.0], [20.0, 36.3]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "German-occupied Italy",
+        "ru": "Италия под немецкой оккупацией",
+        "from": 1944,
+        "to": 1944,
+        "draw": false,
+        "wikipedia": "Italian campaign (World War II)",
+        "note": "Рим и Флоренцию немцы занимали с осени 1943 до лета 1944 года — это оккупация, а не часть Германии."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[10.8, 41.6], [13.2, 41.6], [12.0, 44.2], [10.6, 44.2], [10.8, 41.6]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Florence in the Grand Duchy of Tuscany",
+        "ru": "Великое герцогство Тосканское",
+        "polity": "Grand Duchy of Tuscany",
+        "from": 1738,
+        "to": 1798,
+        "draw": false,
+        "note": "После Медичи Тосканой правили Габсбург-Лотарингские, но как отдельным великим герцогством, а не частью монархии Габсбургов."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[11.12, 43.70], [11.38, 43.70], [11.38, 43.84], [11.12, 43.84], [11.12, 43.70]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Florence in Tuscany, 1800",
+        "ru": "Великое герцогство Тосканское",
+        "polity": "Grand Duchy of Tuscany",
+        "from": 1800,
+        "to": 1800,
+        "draw": false
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[11.12, 43.70], [11.38, 43.70], [11.38, 43.84], [11.12, 43.84], [11.12, 43.70]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Florence in the Kingdom of Etruria",
+        "ru": "Королевство Этрурия",
+        "polity": "Kingdom of Etruria",
+        "from": 1801,
+        "to": 1806,
+        "draw": false,
+        "note": "По Люневильскому миру 1801 года Тоскана стала Королевством Этрурия — набор начинает его на два года позже."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[11.12, 43.70], [11.38, 43.70], [11.38, 43.84], [11.12, 43.84], [11.12, 43.70]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Florence in the restored Grand Duchy",
+        "ru": "Великое герцогство Тосканское",
+        "polity": "Grand Duchy of Tuscany",
+        "from": 1814,
+        "to": 1858,
+        "draw": false,
+        "note": "После Наполеона великое герцогство восстановили; Австрийской империи Тоскана не принадлежала."
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[11.12, 43.70], [11.38, 43.70], [11.38, 43.84], [11.12, 43.84], [11.12, 43.70]]] }
     }
   ]
 }

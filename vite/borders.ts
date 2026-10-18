@@ -60,6 +60,8 @@ interface Row {
   src: 'clio' | 'patch' | 'bg'
   /** Только у заплаток: в какое объединение входила земля (см. PatchProperties.within) */
   within?: string
+  /** Заплатка только для текста — на карте её нет */
+  nomap?: boolean
 }
 
 interface CityPlace {
@@ -232,6 +234,7 @@ function sovereigntyOf(place: CityPlace, rows: Row[], names: NameOverrides): Sov
       segment.ru = nameAt(names, row.name, from, row.ru)
       segment.src = row.src
       if (chosen.distance > 0) segment.near = 1
+      if (row.nomap) segment.nomap = 1
       // Объединение с тем же названием («Королевство Франция» над самим
       // королевством и его вассалами) ничего не добавляет к ответу
       const unionRu = union ? nameAt(names, union.row.name, from, union.row.ru) : null
@@ -246,6 +249,7 @@ function sovereigntyOf(place: CityPlace, rows: Row[], names: NameOverrides): Sov
       last.k === segment.k &&
       last.ru === segment.ru &&
       last.near === segment.near &&
+      last.nomap === segment.nomap &&
       last.u?.k === segment.u?.k &&
       last.u?.ru === segment.u?.ru
     if (same) last.t = to
@@ -290,6 +294,7 @@ export function archeBordersPlugin(): Plugin {
           to: f.properties.to,
           src: 'patch',
           within: f.properties.within,
+          nomap: f.properties.draw === false,
         })
       )
     const rows = [...staticRows, ...patchRows]

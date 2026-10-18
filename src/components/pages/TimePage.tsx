@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { NoteConnections } from './NoteConnections';
 import { NoteFlashcards } from './NoteFlashcards';
+import { NoteKnowledge } from './NoteKnowledge';
 import { NoteRecalls } from './NoteRecalls';
 import { LessonNav } from './LessonNav';
 import { NoteReading } from './NoteReading';
@@ -163,6 +164,8 @@ export function TimePage({ note, metadata, relatedNotes }: TimePageProps) {
           )}
         </div>
         
+        <NoteKnowledge note={note} />
+
         <NoteFlashcards note={note} />
 
         <NoteRecalls note={note} />

@@ -166,7 +166,8 @@ let patchShapes: StateShape[] | null = null;
 /** Заплатки из хранилища: государства, которых в наборе нет или которые он путает */
 function loadPatches(): StateShape[] {
   patchShapes ??= patches.features
-    .filter((f) => f.geometry)
+    // draw: false — заплатка только для текста «чья это земля»
+    .filter((f) => f.geometry && f.properties.draw !== false)
     .map((f) => {
       const area = rewind(structuredClone(f) as Area);
       const key = f.properties.polity ?? patchKey(f.properties.name);

@@ -15,6 +15,8 @@ export interface ContextEvent {
   title: string;
   description: string | null;
   year: number;
+  /** Конец, если событие длилось: войны, соборы, стройки */
+  end: number | null;
   lon: number;
   lat: number;
   place: string | null;
@@ -35,6 +37,7 @@ export interface ContextPerson {
   lat: number;
   /** Место рождения: так в Wikidata, а не «где работал» */
   place: string | null;
+  deathPlace: string | null;
   group: string;
   links: number;
   ru: string | null;
@@ -110,10 +113,11 @@ export function withoutVaultDuplicates(data: ContextData, titles: Set<string>): 
   };
 }
 
+/** События, идущие в этот год или рядом с ним: война 1618–1648 видна весь свой срок */
 export function eventsAround(data: ContextData, year: number, limit: number): ContextEvent[] {
   const window = windowFor(year);
   return data.events
-    .filter((e) => Math.abs(e.year - year) <= window)
+    .filter((e) => e.year - window <= year && year <= (e.end ?? e.year) + window)
     .slice(0, limit);
 }
 

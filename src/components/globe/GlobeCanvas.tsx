@@ -35,6 +35,16 @@ export interface GlobeArc {
 export interface StateLayer {
   key: string;
   ru: string;
+  /** Столица на этот год — для подсказки */
+  capital?: string;
+  /** Раскраска по религии или языку, а сведений нет — рисуется серым */
+  nodata?: boolean;
+  /** Что сообщить в подсказке о раскраске: «Католицизм» */
+  category?: string;
+  /** Категория-«по-разному» («Несколько конфессий»): блёкло */
+  muted?: boolean;
+  /** Режим войны: участник подсвечен, остальные приглушены */
+  emphasis?: 'on' | 'off';
   union: boolean;
   area: Area;
   /** Упрощённая копия для общего вида */
@@ -61,11 +71,23 @@ export interface BackgroundLayer {
 /** Событие или человек из Wikidata — фон «а в это время» */
 export interface ContextPoint {
   id: string;
-  kind: 'event' | 'person';
+  /** battle — сражение выбранной войны: показывается всегда и с подписью */
+  kind: 'event' | 'person' | 'battle';
   lon: number;
   lat: number;
   title: string;
   sub?: string;
+}
+
+/** Столица государства на выбранный год */
+export interface CapitalPoint {
+  /** Ключ государства: щелчок по столице выбирает его */
+  key: string;
+  name: string;
+  /** Название государства — для подсказки */
+  state?: string;
+  lon: number;
+  lat: number;
 }
 
 export type GlobeMode = 'globe' | 'flat';
@@ -73,7 +95,9 @@ export type GlobeMode = 'globe' | 'flat';
 export type GlobeSelection =
   | { kind: 'place'; id: string }
   | { kind: 'state'; key: string }
-  | { kind: 'context'; id: string };
+  | { kind: 'context'; id: string }
+  /** Элемент базы знаний: война, сражение, течение, религия… */
+  | { kind: 'kb'; id: string };
 
 interface GlobeCanvasProps {
   mode: GlobeMode;
@@ -82,12 +106,17 @@ interface GlobeCanvasProps {
   states: StateLayer[];
   background: BackgroundLayer[];
   context: ContextPoint[];
+  capitals: CapitalPoint[];
   selection: GlobeSelection | null;
   onSelect: (selection: GlobeSelection | null) => void;
   /** Крутить самостоятельно, пока никто не трогает */
   autoRotate: boolean;
   /** Повернуться к точке; token меняется — поворачиваемся снова */
   focus: { lon: number; lat: number; token: number } | null;
+  /** Множитель числа точек фона: «реже», «обычно», «гуще» */
+  density?: number;
+  /** Подписи государств, столиц и фона; места хранилища подписаны всегда */
+  showLabels?: boolean;
 }
 
 const DRAG_SENSITIVITY = 0.25;
@@ -130,7 +159,8 @@ const sameSelection = (a: GlobeSelection | null, b: GlobeSelection | null) =>
   a?.kind === b?.kind &&
   (a?.kind === 'place' ? a.id === (b as typeof a).id : true) &&
   (a?.kind === 'state' ? a.key === (b as typeof a).key : true) &&
-  (a?.kind === 'context' ? a.id === (b as typeof a).id : true);
+  (a?.kind === 'context' ? a.id === (b as typeof a).id : true) &&
+  (a?.kind === 'kb' ? a.id === (b as typeof a).id : true);
 
 interface Hover {
   selection: GlobeSelection;
@@ -145,10 +175,13 @@ export function GlobeCanvas({
   states,
   background,
   context,
+  capitals,
   selection,
   onSelect,
   autoRotate,
   focus,
+  density = 1,
+  showLabels = true,
 }: GlobeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -179,6 +212,8 @@ export function GlobeCanvas({
   const touchesRef = useRef(new Map<number, { x: number; y: number }>());
   const pinchRef = useRef<{ startDistance: number; startZoom: number } | null>(null);
   const animationRef = useRef(0);
+  /** Точки фона, которые реально нарисованы: только по ним и попадает курсор */
+  const shownContextRef = useRef<ContextPoint[]>([]);
 
   const zoomFitted = useRef(false);
 
@@ -465,13 +500,16 @@ export function GlobeCanvas({
 
     // Государства: заливка цветом, устойчивым во все века
     for (const { shape, path: statePath } of bases) {
-      ctx.fillStyle = `hsl(${shape.hue} ${tones.stateSaturation}% ${tones.stateLightness}%)`;
+      // Без сведений при раскраске — серым: честнее, чем случайный цвет
+      ctx.fillStyle = shape.nodata
+        ? colors.foreground
+        : `hsl(${shape.hue} ${shape.muted ? 12 : tones.stateSaturation}% ${tones.stateLightness}%)`;
+      const emphasis = shape.emphasis === 'on' ? 2.4 : shape.emphasis === 'off' ? 0.45 : 1;
+      // Тематическая раскраска — насыщеннее: это карта-схема, цвет здесь и есть смысл
+      const thematic = shape.category ? (shape.muted ? 1.4 : 2.1) : 1;
+      const base = (shape.nodata ? tones.stateAlpha * 0.4 : tones.stateAlpha * thematic) * emphasis;
       ctx.globalAlpha =
-        shape.key === selectedKey
-          ? tones.stateAlpha * 2.6
-          : shape.key === hoveredKey
-            ? tones.stateAlpha * 1.7
-            : tones.stateAlpha;
+        shape.key === selectedKey ? base * 2.6 : shape.key === hoveredKey ? base * 1.7 : base;
       ctx.fill(statePath);
     }
     // Берега — поверх заливок, иначе подложка под государствами их съест
@@ -497,6 +535,15 @@ export function GlobeCanvas({
       ctx.stroke(shapePath(lod(shape)));
     }
     ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+
+    // Участники войны — обводкой, чтобы видно было и союзников, и противников
+    ctx.strokeStyle = colors.foreground;
+    ctx.globalAlpha = 0.75;
+    ctx.lineWidth = 1.3;
+    for (const { shape, path: statePath } of bases) {
+      if (shape.emphasis === 'on') ctx.stroke(statePath);
+    }
     ctx.globalAlpha = 1;
 
     // Выбранное государство — чёткой обводкой
@@ -538,18 +585,48 @@ export function GlobeCanvas({
     }
     ctx.globalAlpha = 1;
 
-    // Фон «а в это время»: мелко и бледно, чтобы не спорить с заметками
+    // Столицы — маленькими квадратами: точка заметки круглая, их не спутать
+    const selectedState = selection?.kind === 'state' ? selection.key : null;
+    const capitalSpots: Array<{ capital: CapitalPoint; x: number; y: number; active: boolean }> = [];
+    for (const capital of capitals) {
+      const coords: [number, number] = [capital.lon, capital.lat];
+      if (!isVisible(coords)) continue;
+      const xy = projection(coords);
+      if (!xy || xy[0] < 0 || xy[1] < 0 || xy[0] > size.width || xy[1] > size.height) continue;
+      const active = capital.key === selectedState;
+      const half = active ? 3.5 : 2.5;
+      ctx.fillStyle = colors.background;
+      ctx.fillRect(xy[0] - half, xy[1] - half, half * 2, half * 2);
+      ctx.strokeStyle = colors.foreground;
+      ctx.globalAlpha = active ? 1 : 0.7;
+      ctx.lineWidth = active ? 1.4 : 1;
+      ctx.strokeRect(xy[0] - half, xy[1] - half, half * 2, half * 2);
+      ctx.globalAlpha = 1;
+      capitalSpots.push({ capital, x: xy[0], y: xy[1], active });
+    }
+
+    // Фон «а в это время»: мелко и бледно, чтобы не спорить с заметками.
+    // Сколько точек рисовать — зависит от приближения: на общем виде
+    // полсотни самых известных, вблизи — сотни. Массив уже отсортирован
+    // по известности, поэтому берём первых видимых
+    const perKind = Math.round(Math.min(600, 45 * density * Math.pow(Math.max(1, scale / 400), 1.6)));
+    const drawnByKind = { event: 0, person: 0, battle: 0 };
+    const shownContext: Array<{ point: ContextPoint; x: number; y: number }> = [];
     for (const point of context) {
+      const own = point.kind === 'battle' ? 'kb' : 'context';
+      if (point.kind !== 'battle' && drawnByKind[point.kind] >= perKind && !isSelected(own, point.id)) continue;
       const coords: [number, number] = [point.lon, point.lat];
       if (!isVisible(coords)) continue;
       const xy = projection(coords);
-      if (!xy) continue;
-      const active = isSelected('context', point.id) || isHovered('context', point.id);
-      const r = active ? 4.5 : 2.6;
-      ctx.fillStyle = point.kind === 'event' ? tones.event : tones.person;
+      if (!xy || xy[0] < 0 || xy[1] < 0 || xy[0] > size.width || xy[1] > size.height) continue;
+      drawnByKind[point.kind] += 1;
+      shownContext.push({ point, x: xy[0], y: xy[1] });
+      const active = isSelected(own, point.id) || isHovered(own, point.id);
+      const r = point.kind === 'battle' ? (active ? 6 : 4.5) : active ? 4.5 : 2.6;
+      ctx.fillStyle = point.kind === 'battle' ? '#e5484d' : point.kind === 'event' ? tones.event : tones.person;
       ctx.globalAlpha = active ? 1 : 0.75;
       ctx.beginPath();
-      if (point.kind === 'event') {
+      if (point.kind !== 'person') {
         // Событие — ромбом, человек — кружком: различимо и без легенды
         ctx.moveTo(xy[0], xy[1] - r);
         ctx.lineTo(xy[0] + r, xy[1]);
@@ -567,6 +644,7 @@ export function GlobeCanvas({
       }
     }
     ctx.globalAlpha = 1;
+    shownContextRef.current = shownContext.map((c) => c.point);
 
     // Сначала считаем положение всех точек, и только потом расставляем
     // подписи. В один проход подпись не знала бы о точках, которые будут
@@ -658,6 +736,20 @@ export function GlobeCanvas({
       placeLabels.push({ text: marker.place.title, x: spot.x, y, bold: selected, forced });
     }
 
+    // Столицы подписываются вблизи — и всегда у выбранного государства
+    ctx.font = '10.5px -apple-system, Segoe UI, sans-serif';
+    for (const { capital, x, y, active } of capitalSpots) {
+      if (!active && (scale < 650 || !showLabels)) continue;
+      const width = ctx.measureText(capital.name).width + 4;
+      const spot = { x: x + 6, y: y - 7 };
+      if (!active && !fits(spot.x, spot.y, width, 13)) continue;
+      boxes.push({ x: spot.x, y: spot.y, w: width, h: 13 });
+      ctx.fillStyle = colors.foreground;
+      ctx.globalAlpha = active ? 0.95 : 0.65;
+      ctx.fillText(capital.name, spot.x, y);
+    }
+    ctx.globalAlpha = 1;
+
     // Подписи государств: только у тех, в кого название помещается
     // с запасом, — крупные сначала. Мелкие княжества видны по наведению
     ctx.font = '11px -apple-system, Segoe UI, sans-serif';
@@ -668,7 +760,7 @@ export function GlobeCanvas({
       if (!point) continue;
       const text = shape.ru;
       const width = ctx.measureText(text).width + 6;
-      if (pixelArea(shape) < width * 14 * 3.2 && shape.key !== selectedKey) continue;
+      if (shape.key !== selectedKey && (!showLabels || pixelArea(shape) < width * 14 * 3.2)) continue;
       const x = point[0] - width / 2;
       const y = point[1] - 7;
       if (!fits(x, y, width, 14)) continue;
@@ -681,6 +773,42 @@ export function GlobeCanvas({
     ctx.textAlign = 'left';
     ctx.globalAlpha = 1;
 
+    // Сражения выбранной войны подписываются всегда: их немного, и ради них карту и открыли
+    ctx.font = '600 10.5px -apple-system, Segoe UI, sans-serif';
+    for (const { point, x, y } of shownContext) {
+      if (point.kind !== 'battle') continue;
+      const text = point.title.length > 34 ? `${point.title.slice(0, 33)}…` : point.title;
+      const width = ctx.measureText(text).width + 4;
+      const spot = { x: x + 7, y: y - 6 };
+      if (!fits(spot.x, spot.y, width, 12)) continue;
+      boxes.push({ x: spot.x, y: spot.y, w: width, h: 12 });
+      ctx.fillStyle = '#e5484d';
+      ctx.fillText(text, spot.x, y);
+    }
+
+    // Вблизи — подписи самых известных событий и людей, если есть место
+    if (showLabels && scale >= 800) {
+      const limit = Math.round(Math.min(60, (scale / 60) * density));
+      let labelled = 0;
+      ctx.font = 'italic 10.5px -apple-system, Segoe UI, sans-serif';
+      for (const { point, x, y } of shownContext) {
+        if (labelled >= limit) break;
+        if (point.kind === 'battle') continue;
+        // Без русского названия — только в подсказке: на карте смесь языков читается хуже
+        if (!/[а-яё]/i.test(point.title)) continue;
+        const text = point.title.length > 34 ? `${point.title.slice(0, 33)}…` : point.title;
+        const width = ctx.measureText(text).width + 4;
+        const spot = { x: x + 5, y: y - 6 };
+        if (!fits(spot.x, spot.y, width, 12)) continue;
+        boxes.push({ x: spot.x, y: spot.y, w: width, h: 12 });
+        ctx.fillStyle = point.kind === 'event' ? tones.event : tones.person;
+        ctx.globalAlpha = 0.9;
+        ctx.fillText(text, spot.x, y);
+        labelled += 1;
+      }
+      ctx.globalAlpha = 1;
+    }
+
     for (const label of placeLabels) {
       ctx.font = `${label.bold ? '600 ' : ''}12px -apple-system, Segoe UI, sans-serif`;
       ctx.fillStyle = colors.foreground;
@@ -690,7 +818,7 @@ export function GlobeCanvas({
     ctx.globalAlpha = 1;
   }, [
     size, colors, dark, mode, radius, scale, project, isVisible, markers, arcs, moving,
-    states, background, context, selection, hover, rotation,
+    states, background, context, capitals, selection, hover, rotation, density, showLabels,
   ]);
 
   /** Что под курсором: место, точка фона или государство — в таком порядке */
@@ -727,7 +855,7 @@ export function GlobeCanvas({
 
       let bestPoint: ContextPoint | null = null;
       bestDistance = 8;
-      for (const point of context) {
+      for (const point of shownContextRef.current) {
         const coords: [number, number] = [point.lon, point.lat];
         if (!isVisible(coords)) continue;
         const xy = projection(coords);
@@ -740,10 +868,23 @@ export function GlobeCanvas({
       }
       if (bestPoint) {
         return {
-          selection: { kind: 'context', id: bestPoint.id },
+          selection: bestPoint.kind === 'battle' ? { kind: 'kb', id: bestPoint.id } : { kind: 'context', id: bestPoint.id },
           title: bestPoint.title,
           sub: bestPoint.sub,
         };
+      }
+
+      for (const capital of capitals) {
+        const coords: [number, number] = [capital.lon, capital.lat];
+        if (!isVisible(coords)) continue;
+        const xy = projection(coords);
+        if (xy && Math.hypot(px - xy[0], py - xy[1]) < 7) {
+          return {
+            selection: { kind: 'state', key: capital.key },
+            title: capital.name,
+            sub: capital.state ? `столица: ${capital.state}` : 'столица',
+          };
+        }
       }
 
       const lonLat = projection.invert?.([px, py]);
@@ -767,10 +908,15 @@ export function GlobeCanvas({
           (shape) =>
             shape.union && shape.ru !== state!.ru && geoContains(shape.area, point)
         );
+        const sub = [
+          state.category ?? null,
+          state.capital ? `столица: ${state.capital}` : null,
+          union ? `в составе: ${union.ru}` : null,
+        ].filter(Boolean);
         return {
           selection: { kind: 'state', key: state.key },
           title: state.ru,
-          sub: union ? `в составе: ${union.ru}` : undefined,
+          sub: sub.length > 0 ? sub.join(' · ') : undefined,
         };
       }
 

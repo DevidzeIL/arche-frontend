@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { BookMarked, Check, ExternalLink } from 'lucide-react';
 import { useProgressStore } from '@/arche/learning/progressStore';
-import { readingOf, needsSource, READING_META, type ReadingKind } from '@/arche/reading';
+import { useArcheStore } from '@/arche/state/store';
+import { readingOf, needsSource, READING_META, type ReadingItem, type ReadingKind } from '@/arche/reading';
 import { cn } from '@/lib/utils';
 import type { ArcheNote } from '@/arche/types';
 
@@ -25,6 +26,20 @@ const KIND_STYLE: Record<ReadingKind, string> = {
  * и без возможности отметить прочитанное. Здесь то же содержимое, но
  * как часть приложения, а не как хвост текста.
  */
+/**
+ * Подпись записи. Если запись — [[ссылка]] на заметку хранилища, она
+ * ведёт туда; иначе скобки Obsidian попадали бы на страницу как есть
+ */
+export function ReadingText({ item }: { item: ReadingItem }) {
+  const target = useArcheStore((s) => (item.target ? s.getNoteByTitle(item.target) : undefined));
+  if (!target) return <>{item.text}</>;
+  return (
+    <Link to={`/note/${target.id}`} className="underline decoration-border underline-offset-2 hover:decoration-foreground">
+      {item.text}
+    </Link>
+  );
+}
+
 export function NoteReading({ note }: NoteReadingProps) {
   const items = useMemo(() => readingOf(note), [note]);
   const readingDone = useProgressStore((s) => s.readingDone);
@@ -79,7 +94,7 @@ export function NoteReading({ note }: NoteReadingProps) {
                       done && 'text-muted-foreground line-through'
                     )}
                   >
-                    {item.text}
+                    <ReadingText item={item} />
                   </span>
                   <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
                     <span

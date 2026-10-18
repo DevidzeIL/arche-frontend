@@ -6,6 +6,7 @@ import { useProgressStore } from '@/arche/learning/progressStore';
 import { buildCourses } from '@/arche/learning/curriculum';
 import { readingOf, READING_META, type ReadingItem, type ReadingKind } from '@/arche/reading';
 import { Button } from '@/components/ui/button';
+import { ReadingText } from '@/components/pages/NoteReading';
 import { cn } from '@/lib/utils';
 import { plural } from '@/lib/plural';
 
@@ -212,7 +213,7 @@ function ReadingRow({
             done && 'text-muted-foreground line-through'
           )}
         >
-          {item.text}
+          <ReadingText item={item} />
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
           <span

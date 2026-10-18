@@ -166,6 +166,38 @@ const pwaPlugin = VitePWA({
         options: { cacheName: 'arche-context' },
       },
       {
+        // Справки Википедии в панелях глобуса: показать прошлую можно и без сети
+        urlPattern: ({ url }) =>
+          /^(ru|en).wikipedia.org$/.test(url.hostname) && url.pathname.startsWith('/api/rest_v1/page/summary/'),
+        handler: 'StaleWhileRevalidate',
+        options: {
+          cacheName: 'wiki-summaries',
+          expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 30 },
+        },
+      },
+      {
+        // Имя файла портрета из Wikidata — запрашивается при открытии панели
+        urlPattern: ({ url }) => url.hostname === 'www.wikidata.org' && url.pathname === '/w/api.php',
+        handler: 'StaleWhileRevalidate',
+        options: {
+          cacheName: 'wikidata-claims',
+          expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 30 },
+        },
+      },
+      {
+        // Флаги, гербы и портреты с Commons — картинки, они не меняются
+        urlPattern: ({ url }) =>
+          url.hostname === 'upload.wikimedia.org' ||
+          (url.hostname === 'commons.wikimedia.org' && url.pathname.startsWith('/wiki/Special:FilePath/')),
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'commons-images',
+          expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 90 },
+          // Чужие картинки приходят непрозрачными ответами со статусом 0
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
+      {
         // Века и срезы фона запрашиваются с ?v=<версия сборки>: новый
         // адрес — новый файл, поэтому кэшу можно верить без проверки
         urlPattern: ({ url }) => url.pathname.startsWith('/borders/'),

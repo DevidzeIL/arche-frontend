@@ -137,6 +137,9 @@ export interface HealthReport {
 /** Служебное: тесты и шаблоны не заметки в смысле содержания */
 const SKIP_TYPES = new Set(['quiz']);
 
+/** У места и хаба своего года нет: это не пробел, а их природа */
+const TIMELESS_TYPES = new Set(['place', 'hub']);
+
 /** Типы, у которых география осмысленна. У понятия места нет, и это нормально */
 const GEO_TYPES = new Set(['person', 'work', 'event', 'place']);
 
@@ -170,6 +173,7 @@ export function buildHealthReport({
   };
 
   let dated = 0;
+  let datable = 0;
   let located = 0;
   let causal = 0;
   let geoRelevant = 0;
@@ -180,8 +184,11 @@ export function buildHealthReport({
     const item: GapItem = { noteId: note.id, title: note.title, type: note.type, path: note.path };
     const node = graph.nodeById.get(note.id);
 
-    if (node?.time) dated += 1;
-    else buckets['no-time'].push(item);
+    if (!TIMELESS_TYPES.has(note.type ?? '')) {
+      datable += 1;
+      if (node?.time) dated += 1;
+      else buckets['no-time'].push(item);
+    }
 
     if (GEO_TYPES.has(note.type ?? '')) {
       geoRelevant += 1;
@@ -223,7 +230,7 @@ export function buildHealthReport({
     totalNotes: notes.length,
     checked: checked.length,
     coverage: [
-      { label: 'На карте времени', covered: dated, total: checked.length },
+      { label: 'На карте времени', covered: dated, total: datable },
       { label: 'На глобусе', covered: located, total: geoRelevant },
       { label: 'С причинными связями', covered: causal, total: checked.length },
       { label: 'В исторических границах', covered: bordered, total: borderRelevant },

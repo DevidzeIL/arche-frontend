@@ -233,6 +233,10 @@ export function parseNote(
       timeSpan: parseTimeSpan(frontmatter),
       geo: parseGeo(frontmatter),
       places: readList(frontmatter.place ?? frontmatter.places),
+      // Ручная привязка к Wikidata: сильнее той, что подобрал скрипт (pnpm kb)
+      wikidata: typeof frontmatter.wikidata === 'string' && /^Q\d+$/.test(frontmatter.wikidata.trim())
+        ? frontmatter.wikidata.trim()
+        : undefined,
     };
   } catch (error) {
     // Error parsing note - skip silently

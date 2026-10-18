@@ -11,6 +11,7 @@ import { MuseumCard, TypeBadge } from '@/components/museum';
 import { NoteConnections } from './NoteConnections';
 import { NoteFlashcards } from './NoteFlashcards';
 import { NoteWhere } from './NoteWhere';
+import { NoteKnowledge } from './NoteKnowledge';
 import { NoteRecalls } from './NoteRecalls';
 import { LessonNav } from './LessonNav';
 import { NoteReading } from './NoteReading';
@@ -192,6 +193,8 @@ export function WorkPage({ note, metadata, relatedNotes }: WorkPageProps) {
         </div>
         
         <NoteWhere note={note} />
+
+        <NoteKnowledge note={note} />
 
         <NoteFlashcards note={note} />
 

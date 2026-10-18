@@ -164,6 +164,15 @@ function wikidataLabels(ids) {
 
 const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
+/**
+ * Ручной словарь сильнее Wikidata: у сотни государств русской подписи нет,
+ * а у трёх десятков она описывает не государство, а событие или человека
+ * («Danish Magnates» → «Кристофер II»)
+ */
+const POLITY_NAMES_RU = JSON.parse(
+  fs.readFileSync(path.join(root, 'scripts', 'data', 'polity-names.ru.json'), 'utf8')
+);
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -257,7 +266,8 @@ async function buildCliopatria() {
     };
     if (union) entry.u = 1;
     // «История Шумера» — название статьи, а не государства
-    if (label?.ru && !/^история\s/i.test(label.ru)) entry.ru = capitalize(label.ru);
+    if (POLITY_NAMES_RU[entry.n]) entry.ru = POLITY_NAMES_RU[entry.n];
+    else if (label?.ru && !/^история\s/i.test(label.ru)) entry.ru = capitalize(label.ru);
     if (p.item) entry.q = p.item;
     if (p.wikipedia) entry.w = p.wikipedia;
     if (label?.ruwiki) entry.rw = label.ruwiki;

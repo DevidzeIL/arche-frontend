@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PersonPage, WorkPage, ConceptPage, TimePage, PlacePage } from '@/components/pages';
 import { NoteWhere } from '@/components/pages/NoteWhere';
+import { NoteKnowledge } from '@/components/pages/NoteKnowledge';
 import { NoteEditor } from '@/components/pages/NoteEditor';
 import { parseMetadata } from '@/components/pages/metadataParser';
 import { MarkdownViewer } from '@/arche/markdown/components';
@@ -104,6 +105,8 @@ export function NotePage() {
 
                 {/* События — главные клиенты: Реформация случилась в Виттенберге, а он — в Саксонии */}
                 <NoteWhere note={note} />
+
+                <NoteKnowledge note={note} />
 
                 {relatedNotes.length > 0 && (
                   <section className="pt-8 border-t border-border/30">

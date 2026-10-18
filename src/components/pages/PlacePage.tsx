@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 import type { ArcheNote } from '@/arche/types';
 import { NoteConnections } from './NoteConnections';
 import { PolityLabel } from './NoteWhere';
+import { PlaceContext } from './PlaceContext';
+import { NoteKnowledge } from './NoteKnowledge';
 
 const BordersMiniMap = lazy(() =>
   import('@/components/globe/BordersMiniMap').then((m) => ({ default: m.BordersMiniMap }))
@@ -211,6 +213,10 @@ export function PlacePage({ note }: PlacePageProps) {
               </ul>
             </section>
           )}
+
+          {place && isCity && <PlaceContext lat={place.geo.lat} lon={place.geo.lon} />}
+
+          <NoteKnowledge note={note} />
 
           <NoteConnections note={note} />
         </article>

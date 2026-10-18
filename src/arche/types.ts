@@ -46,6 +46,8 @@ export interface ArcheNote {
   geo?: NoteGeo; // координаты; только у заметок-мест
   /** Явная привязка к местам: `place: [Афины, Париж]` во frontmatter */
   places: string[];
+  /** Элемент Wikidata, если задан вручную: `wikidata: Q9312` (сильнее привязки из pnpm kb) */
+  wikidata?: string;
 }
 
 export interface NoteLink {

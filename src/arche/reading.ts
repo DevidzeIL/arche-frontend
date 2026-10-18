@@ -65,6 +65,8 @@ export interface ReadingItem {
   url?: string;
   /** Где взять: «Викитека», «Gutenberg» — подпись ссылки */
   source?: string;
+  /** Запись — ссылка на заметку хранилища: [[Критика чистого разума — Кант]] */
+  target?: string;
 }
 
 /** Заголовки, под которыми в хранилище лежит литература */
@@ -75,6 +77,9 @@ const ANY_HEADING = /^##\s+/;
 const ITEM = /^\s*[-*]\s+(?:\{([^}]+)\}\s*)?(.+)$/;
 const MARKDOWN_LINK = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/;
 const BARE_URL = /(https?:\/\/\S+)/;
+
+/** [[Заметка]] или [[Заметка|подпись]] */
+const WIKILINK = /\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g;
 
 /** Заглушка из шаблона — не запись, а признак ненаписанного */
 const PLACEHOLDER = /^требуется источник/i;
@@ -157,14 +162,24 @@ export function readingOf(note: ArcheNote): ReadingItem[] {
     text = text.replace(TRAILING_KIND, '').trim();
     if (!text) continue;
 
+    // Ключ «прочитано» — по тексту до снятия скобок: так уже сохранённые
+    // отметки остаются на месте
+    const id = `${note.id}:${hash(text)}`;
+    let target: string | undefined;
+    text = text.replace(WIKILINK, (_, title: string, alias?: string) => {
+      target ??= title.trim();
+      return (alias ?? title).trim();
+    });
+
     items.push({
-      id: `${note.id}:${hash(text)}`,
+      id,
       noteId: note.id,
       noteTitle: note.title,
       kind,
       text,
       url,
       source,
+      target,
     });
   }
 

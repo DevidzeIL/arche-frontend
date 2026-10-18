@@ -5,6 +5,8 @@ import { noteTypeLabel, noteTypeMeta } from '@/arche/noteTypes';
 import { formatYear } from '@/arche/timeSpan';
 import { firstImageOf } from '@/arche/images';
 import { excerptOf } from '@/arche/excerpt';
+import { placesForGraph } from '@/arche/geo';
+import { polityOfPlace } from '@/arche/sovereignty';
 
 const OFFSET = 16;
 const MAX_RELATIONS = 4;
@@ -59,6 +61,13 @@ export function NodeHoverCard({ graph, node, position }: NodeHoverCardProps) {
 
   const summary = excerptOf(node.note, 200);
 
+  // Где это было и чья это была земля: «Кёнигсберг · Королевство Пруссия»
+  const places = placesForGraph(graph.nodes.map((n) => n.note), graph).placesOf.get(node.id) ?? [];
+  const where = places.slice(0, 2).map((place) => {
+    const polity = time && place.geo.scale === 'city' ? polityOfPlace(place.id, time.displayYear) : null;
+    return polity && polity.src !== 'bg' ? `${place.title} · ${polity.ru ?? polity.n}` : place.title;
+  });
+
   return (
     <div
       ref={ref}
@@ -80,6 +89,9 @@ export function NodeHoverCard({ graph, node, position }: NodeHoverCardProps) {
             />
             {noteTypeLabel(node.type)} · {period}
           </p>
+          {where.length > 0 && (
+            <p className="mt-0.5 text-xs text-muted-foreground">{where.join('; ')}</p>
+          )}
           {summary && (
             <p className="mt-1.5 line-clamp-3 text-[13px] leading-snug text-muted-foreground">
               {summary}

@@ -4,9 +4,12 @@ import { Search } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
 import { searchNotes, matchSnippet } from '@/arche/search';
 import { noteTypeLabel } from '@/arche/noteTypes';
+import type { ReferenceEntry } from '@/arche/reference';
 import { cn } from '@/lib/utils';
 
 const MAX_RESULTS = 12;
+/** Справки из Wikidata — после заметок и меньше: своё важнее */
+const MAX_REFERENCE = 8;
 
 /** Открыт ли сейчас ввод текста — тогда «/» не должен перехватываться */
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -33,6 +36,29 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const listRef = useRef<HTMLUListElement>(null);
 
   const results = useMemo(() => searchNotes(notes, query, MAX_RESULTS), [notes, query]);
+
+  // Справочный слой грузится при первом открытии, отдельным чанком:
+  // палитра живёт в главном бандле, а справка нужна не каждому заходу
+  const [reference, setReference] = useState<{
+    entries: ReferenceEntry[];
+    search: typeof import('@/arche/reference').searchReference;
+  } | null>(null);
+  useEffect(() => {
+    if (!open || reference) return;
+    let alive = true;
+    import('@/arche/reference').then(async (mod) => {
+      const entries = await mod.loadReferenceEntries();
+      if (alive) setReference({ entries, search: mod.searchReference });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [open, reference]);
+  const referenceResults = useMemo(
+    () => (reference ? reference.search(reference.entries, query, MAX_REFERENCE) : []),
+    [reference, query]
+  );
+  const total = results.length + referenceResults.length;
 
   // Сбрасываем состояние при каждом открытии
   useEffect(() => {
@@ -61,17 +87,29 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     [navigate, onOpenChange]
   );
 
+  const openReference = useCallback(
+    (id: string) => {
+      onOpenChange(false);
+      navigate(`/kb/${id}`);
+    },
+    [navigate, onOpenChange]
+  );
+
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setActiveIndex((index) => (results.length ? (index + 1) % results.length : 0));
+      setActiveIndex((index) => (total ? (index + 1) % total : 0));
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      setActiveIndex((index) => (results.length ? (index - 1 + results.length) % results.length : 0));
+      setActiveIndex((index) => (total ? (index - 1 + total) % total : 0));
     } else if (event.key === 'Enter') {
       event.preventDefault();
       const note = results[activeIndex];
       if (note) openNote(note.id);
+      else {
+        const entry = referenceResults[activeIndex - results.length];
+        if (entry) openReference(entry.id);
+      }
     } else if (event.key === 'Escape') {
       event.preventDefault();
       onOpenChange(false);
@@ -98,8 +136,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Найти заметку..."
-            aria-label="Найти заметку"
+            placeholder="Найти заметку, страну, войну, человека…"
+            aria-label="Найти заметку или справку"
             aria-controls="command-palette-results"
             className="flex-1 bg-transparent py-4 text-base outline-none placeholder:text-muted-foreground"
           />
@@ -108,7 +146,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           </kbd>
         </div>
 
-        {results.length === 0 ? (
+        {total === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
             {query.trim() ? 'Ничего не найдено' : 'Начните вводить название'}
           </p>
@@ -152,6 +190,35 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 </button>
               </li>
             ))}
+            {referenceResults.length > 0 && (
+              <li className="px-4 pb-1 pt-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+                Справка · Wikidata
+              </li>
+            )}
+            {referenceResults.map((entry, i) => {
+              const index = results.length + i;
+              return (
+                <li key={entry.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    data-active={index === activeIndex}
+                    onClick={() => openReference(entry.id)}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    className={cn(
+                      'w-full px-4 py-2 text-left transition-colors',
+                      index === activeIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
+                    )}
+                  >
+                    <span className="flex items-baseline justify-between gap-3">
+                      <span className="truncate">{entry.title}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{entry.sub}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
