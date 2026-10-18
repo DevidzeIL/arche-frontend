@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint:vault": "node scripts/lint-vault.mjs"
+    "lint:vault": "node scripts/lint-vault.mjs",
+    "borders": "node --max-old-space-size=8192 scripts/build-borders.mjs",
+    "context": "node scripts/build-context.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -44,6 +46,8 @@
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "buffer": "^6.0.3",
+    "fflate": "0.8.2",
+    "mapshaper": "0.6.102",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
     "typescript": "^5.2.2",

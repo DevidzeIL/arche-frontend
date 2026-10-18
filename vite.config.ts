@@ -5,6 +5,7 @@ import path from 'path'
 import { readdirSync, statSync, mkdirSync, copyFileSync, existsSync, writeFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { archeVaultWritePlugin } from './vite/vault-write'
+import { archeBordersPlugin } from './vite/borders'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -102,6 +103,11 @@ function getContentType(filePath: string): string {
  * и весят они куда больше самого приложения — скачивать всё это при
  * первом заходе было бы издевательством. Они кэшируются по мере
  * просмотра.
+ *
+ * Границы и фон «а в это время» — тем более: 4 МБ в gzip на всю историю,
+ * а смотрят обычно на пару веков. Просмотренное кэшируется и работает
+ * без сети; файлы неизменны до следующей пересборки (pnpm borders),
+ * поэтому сначала берутся из кэша.
  */
 const pwaPlugin = VitePWA({
   registerType: 'autoUpdate',
@@ -147,6 +153,28 @@ const pwaPlugin = VitePWA({
           expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 90 },
         },
       },
+      {
+        // Индекс — сетью: после пересборки границ он меняется первым
+        urlPattern: ({ url }) => url.pathname === '/borders/index.json',
+        handler: 'StaleWhileRevalidate',
+        options: { cacheName: 'arche-borders-index' },
+      },
+      {
+        // Фон «а в это время» — два самостоятельных файла без версии
+        urlPattern: ({ url }) => url.pathname.startsWith('/context/'),
+        handler: 'StaleWhileRevalidate',
+        options: { cacheName: 'arche-context' },
+      },
+      {
+        // Века и срезы фона запрашиваются с ?v=<версия сборки>: новый
+        // адрес — новый файл, поэтому кэшу можно верить без проверки
+        urlPattern: ({ url }) => url.pathname.startsWith('/borders/'),
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'arche-borders',
+          expiration: { maxEntries: 160, maxAgeSeconds: 60 * 60 * 24 * 90 },
+        },
+      },
     ],
   },
   devOptions: {
@@ -157,7 +185,7 @@ const pwaPlugin = VitePWA({
 })
 
 export default defineConfig({
-  plugins: [react(), archeVaultStaticPlugin(), archeVaultWritePlugin(), pwaPlugin],
+  plugins: [react(), archeVaultStaticPlugin(), archeVaultWritePlugin(), archeBordersPlugin(), pwaPlugin],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -17,6 +17,7 @@
  */
 
 import type { ArcheNote, NoteGeo } from './types';
+import type { KnowledgeGraph } from './knowledge';
 import { normalizeTitle } from './normalize';
 
 export interface Place {
@@ -184,6 +185,36 @@ export function resolveAllPlaces(
   }
 
   return map;
+}
+
+export interface GraphPlaces {
+  index: PlaceIndex;
+  placesOf: Map<string, Place[]>;
+}
+
+const graphPlaces = new WeakMap<KnowledgeGraph, GraphPlaces>();
+
+/**
+ * Места всех заметок, с работами, унаследовавшими места автора.
+ *
+ * Одно и то же считали глобус и «Что стоит дописать», а теперь ещё
+ * и страница каждой заметки. Граф пересобирается вместе со списком
+ * заметок, поэтому кэш по нему и живёт ровно столько, сколько верен.
+ */
+export function placesForGraph(notes: ArcheNote[], graph: KnowledgeGraph): GraphPlaces {
+  const cached = graphPlaces.get(graph);
+  if (cached) return cached;
+
+  const index = buildPlaceIndex(notes);
+  const placesOf = resolveAllPlaces(notes, index, (noteId) =>
+    (graph.adjacent.get(noteId) ?? [])
+      .filter((edge) => edge.kind === 'author')
+      .map((edge) => (edge.sourceId === noteId ? edge.targetId : edge.sourceId))
+      .filter((id) => graph.nodeById.get(id)?.type === 'person')
+  );
+  const result = { index, placesOf };
+  graphPlaces.set(graph, result);
+  return result;
 }
 
 /** Что произошло в этом месте: обратный индекс */

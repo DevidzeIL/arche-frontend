@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, ChevronDown, ChevronRight, Copy, Stethoscope } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
-import { buildPlaceIndex, resolveAllPlaces } from '@/arche/geo';
+import { placesForGraph } from '@/arche/geo';
 import { buildHealthReport, fixSnippet, GAP_META, type GapKind } from '@/arche/health';
 import { noteTypeLabel, noteTypeMeta } from '@/arche/noteTypes';
 import { cn } from '@/lib/utils';
@@ -60,13 +60,7 @@ export function HealthPage() {
   const getBacklinks = useArcheStore((s) => s.getBacklinks);
 
   const report = useMemo(() => {
-    const placeIndex = buildPlaceIndex(notes);
-    const placesOf = resolveAllPlaces(notes, placeIndex, (noteId) =>
-      (graph.adjacent.get(noteId) ?? [])
-        .filter((edge) => edge.kind === 'author')
-        .map((edge) => (edge.sourceId === noteId ? edge.targetId : edge.sourceId))
-        .filter((id) => graph.nodeById.get(id)?.type === 'person')
-    );
+    const { index: placeIndex, placesOf } = placesForGraph(notes, graph);
 
     return buildHealthReport({
       notes,
@@ -97,13 +91,14 @@ export function HealthPage() {
           <h1 className="mt-1 font-serif text-3xl">Что стоит дописать</h1>
           <p className="mt-2 max-w-xl leading-relaxed text-muted-foreground">
             Каждая возможность приложения чем-то питается: карта — датировкой,
-            глобус — географией, родословная и вопросы тестов — причинными связями.
+            глобус — географией, «Где и когда» — историческими границами, родословная
+            и вопросы тестов — причинными связями.
             Здесь видно, где этого не хватает. Это список пробелов, а не ошибок.
           </p>
         </header>
 
         {/* Охват */}
-        <section className="mb-8 grid gap-3 sm:grid-cols-3">
+        <section className="mb-8 grid gap-3 sm:grid-cols-2">
           {report.coverage.map((item) => {
             const percent = item.total > 0 ? Math.round((item.covered / item.total) * 100) : 100;
             return (
@@ -167,6 +162,9 @@ export function HealthPage() {
                           title={noteTypeLabel(item.type)}
                         >
                           {item.title}
+                          {item.detail && (
+                            <span className="ml-2 text-[12px] text-muted-foreground">{item.detail}</span>
+                          )}
                         </Link>
                         <span className="hidden shrink-0 font-mono text-[11px] text-muted-foreground/60 sm:inline">
                           {item.path}

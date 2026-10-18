@@ -3,7 +3,8 @@ import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useArcheStore } from '@/arche/state/store';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PersonPage, WorkPage, ConceptPage, TimePage } from '@/components/pages';
+import { PersonPage, WorkPage, ConceptPage, TimePage, PlacePage } from '@/components/pages';
+import { NoteWhere } from '@/components/pages/NoteWhere';
 import { NoteEditor } from '@/components/pages/NoteEditor';
 import { parseMetadata } from '@/components/pages/metadataParser';
 import { MarkdownViewer } from '@/arche/markdown/components';
@@ -74,6 +75,10 @@ export function NotePage() {
       case 'epoch':
         return <TimePage note={note} metadata={metadata as any} relatedNotes={relatedNotes} />;
 
+      // У места своя тема — чьей землёй оно было в каждый век
+      case 'place':
+        return <PlacePage note={note} />;
+
       default:
         // Fallback для других типов - используем простой шаблон
         return (
@@ -96,6 +101,9 @@ export function NotePage() {
                     <MarkdownViewer content={bodyForDisplay(note)} />
                   </div>
                 </div>
+
+                {/* События — главные клиенты: Реформация случилась в Виттенберге, а он — в Саксонии */}
+                <NoteWhere note={note} />
 
                 {relatedNotes.length > 0 && (
                   <section className="pt-8 border-t border-border/30">

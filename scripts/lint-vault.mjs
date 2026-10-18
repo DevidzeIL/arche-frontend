@@ -102,6 +102,56 @@ for (const note of notes) {
   }
 }
 
+/**
+ * Поправки к границам (arche-vault/_borders). Опечатка в названии
+ * государства здесь не ломает сборку, а молча не срабатывает: заплатка
+ * для «Swiss Confederaton» вернёт Женеву никому.
+ */
+const BORDERS = path.join(VAULT, '_borders');
+const INDEX = path.join(root, 'public', 'borders', 'index.json');
+
+function readJson(file, label) {
+  if (!fs.existsSync(file)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (error) {
+    problems.push(`${label}: не разбирается как JSON — ${error.message}`);
+    return null;
+  }
+}
+
+const polityKeys = new Set(
+  (readJson(INDEX, 'public/borders/index.json')?.polities ?? []).map((p) => (p.u ? `(${p.n})` : p.n))
+);
+const known = (name) => polityKeys.size === 0 || polityKeys.has(name);
+
+const patches = readJson(path.join(BORDERS, 'patches.geojson'), '_borders/patches.geojson');
+for (const [i, feature] of (patches?.features ?? []).entries()) {
+  const p = feature.properties ?? {};
+  const label = `_borders/patches.geojson #${i + 1} «${p.name ?? '?'}»`;
+  if (!p.name || !p.ru) problems.push(`${label}: нужны поля name и ru`);
+  if (!Number.isInteger(p.from) || !Number.isInteger(p.to) || p.to < p.from) {
+    problems.push(`${label}: годы from/to не заданы или перевёрнуты`);
+  }
+  if (!['Polygon', 'MultiPolygon'].includes(feature.geometry?.type)) {
+    problems.push(`${label}: геометрия должна быть Polygon или MultiPolygon`);
+  }
+  if (p.polity && !known(p.polity)) problems.push(`${label}: государства «${p.polity}» нет в Cliopatria`);
+  if (p.within && !known(p.within)) problems.push(`${label}: объединения «${p.within}» нет в Cliopatria`);
+}
+
+const names = readJson(path.join(BORDERS, 'names.json'), '_borders/names.json') ?? {};
+for (const [name, value] of Object.entries(names)) {
+  if (name === '_') continue;
+  // Названия фона (historical-basemaps) в индекс не входят — только предупреждаем
+  if (!known(name) && !known(`(${name})`)) {
+    warnings.push(`_borders/names.json: «${name}» нет среди государств Cliopatria`);
+  }
+  if (Array.isArray(value) && value.some((r) => !r.ru)) {
+    problems.push(`_borders/names.json: у «${name}» есть отрезок без ru`);
+  }
+}
+
 const list = (label, items) => {
   if (items.length === 0) return;
   console.log(`\n${label} (${items.length}):`);

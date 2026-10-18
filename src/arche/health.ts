@@ -14,6 +14,8 @@ import type { ArcheNote } from './types';
 import type { KnowledgeGraph } from './knowledge';
 import { RELATION_META } from './relations';
 import type { PlaceIndex, Place } from './geo';
+import { hasSovereignty, polityOfPlace } from './sovereignty';
+import { formatYear } from './timeSpan';
 
 export type GapKind =
   | 'no-time'
@@ -21,7 +23,8 @@ export type GapKind =
   | 'no-causal'
   | 'orphan'
   | 'stub'
-  | 'no-source';
+  | 'no-source'
+  | 'no-polity';
 
 export interface GapMeta {
   title: string;
@@ -66,7 +69,16 @@ export const GAP_META: Record<GapKind, GapMeta> = {
     consequence: 'в разделе источников стоит «требуется источник»',
     snippet: null,
   },
+  'no-polity': {
+    title: 'Вне границ',
+    consequence: 'в год заметки город не попадает ни в одно государство — «Где и когда» молчит',
+    // Чинится не в заметке, а заплаткой границ — см. fixSnippet
+    snippet: null,
+  },
 };
+
+/** Куда и что дописать, если город в свой год вне всех границ */
+const PATCH_FILE = 'arche-vault/_borders/patches.geojson';
 
 /**
  * Что положить в буфер, чтобы починить пробел.
@@ -78,6 +90,16 @@ export const GAP_META: Record<GapKind, GapMeta> = {
 export function fixSnippet(kind: GapKind, item: GapItem): string {
   const meta = GAP_META[kind];
   if (kind === 'orphan') return `[[${item.title}]]`;
+  if (kind === 'no-polity') {
+    const feature = {
+      type: 'Feature',
+      properties: { name: '', ru: '', from: item.year ?? 0, to: item.year ?? 0, note: '' },
+      geometry: { type: 'Polygon', coordinates: [[]] },
+    };
+    return `${PATCH_FILE}
+
+${JSON.stringify(feature, null, 2)}`;
+  }
   if (!meta.snippet) return item.path;
   return `${item.path}\n\n${meta.snippet}`;
 }
@@ -88,6 +110,9 @@ export interface GapItem {
   type?: string;
   /** Путь к файлу в хранилище — его и кладём в буфер вместе с заготовкой */
   path: string;
+  /** Уточнение для списка: «Афины, 428 до н.э.» */
+  detail?: string;
+  year?: number;
 }
 
 export interface Gap {
@@ -141,12 +166,15 @@ export function buildHealthReport({
     orphan: [],
     stub: [],
     'no-source': [],
+    'no-polity': [],
   };
 
   let dated = 0;
   let located = 0;
   let causal = 0;
   let geoRelevant = 0;
+  let bordered = 0;
+  let borderRelevant = 0;
 
   for (const note of checked) {
     const item: GapItem = { noteId: note.id, title: note.title, type: note.type, path: note.path };
@@ -167,6 +195,23 @@ export function buildHealthReport({
     if (hasCausal) causal += 1;
     else buckets['no-causal'].push(item);
 
+    // Город и год есть, а государства нет: набор границ здесь пуст или ошибся.
+    // Регионы не считаем — у них государство в точке и не должно определяться
+    const cities = (placesOf.get(note.id) ?? []).filter((p) => hasSovereignty(p.id));
+    if (node?.time && note.type !== 'place' && cities.length > 0) {
+      borderRelevant += 1;
+      const year = node.time.displayYear;
+      const lost = cities.filter((p) => !polityOfPlace(p.id, year));
+      if (lost.length === 0) bordered += 1;
+      else {
+        buckets['no-polity'].push({
+          ...item,
+          year,
+          detail: `${lost.map((p) => p.title).join(', ')}, ${formatYear(year)}`,
+        });
+      }
+    }
+
     if (backlinksOf(note.id).length === 0) buckets.orphan.push(item);
     if ((note.plainText?.length ?? 0) < STUB_LENGTH) buckets.stub.push(item);
     if (SOURCE_PLACEHOLDER.test(note.body)) buckets['no-source'].push(item);
@@ -181,6 +226,7 @@ export function buildHealthReport({
       { label: 'На карте времени', covered: dated, total: checked.length },
       { label: 'На глобусе', covered: located, total: geoRelevant },
       { label: 'С причинными связями', covered: causal, total: checked.length },
+      { label: 'В исторических границах', covered: bordered, total: borderRelevant },
     ],
     gaps: (Object.keys(buckets) as GapKind[])
       .map((kind) => ({ kind, items: buckets[kind].sort(byTitle) }))

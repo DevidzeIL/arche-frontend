@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { MuseumCard, TypeBadge } from '@/components/museum';
 import { NoteConnections } from './NoteConnections';
 import { NoteFlashcards } from './NoteFlashcards';
+import { NoteWhere } from './NoteWhere';
 import { NoteRecalls } from './NoteRecalls';
 import { LessonNav } from './LessonNav';
 import { NoteReading } from './NoteReading';
@@ -197,6 +198,8 @@ export function PersonPage({ note, metadata, relatedNotes }: PersonPageProps) {
           </aside>
         )}
         
+        <NoteWhere note={note} />
+
         <NoteFlashcards note={note} />
 
         <NoteRecalls note={note} />
