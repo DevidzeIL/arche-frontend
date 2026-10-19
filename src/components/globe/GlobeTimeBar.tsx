@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from 'lucide-react'
 import { formatYear } from '@/arche/timeSpan';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { plural } from '@/lib/plural';
 
 export interface TimeBand {
   id: string;
@@ -83,23 +84,33 @@ const LABEL_YEARS = [-3000, -2000, -1000, -500, 0, 500, 1000, 1500, 1800, 1900, 
 
 const BAND_COLORS = ['#e0af68', '#7aa2f7', '#9ece6a', '#bb9af7', '#f7768e', '#73daca'];
 
+/** Шаг ‹ › — рядом со стрелками: в настройках его никто не находил */
+const STEPS = [1, 10, 100];
+const SPEEDS = [0.5, 1, 2, 4];
+
 export function GlobeTimeBar({
   year,
   min,
   max,
   playing,
   step,
+  speed,
   bands,
   ticks,
   info,
   onYear,
   onTogglePlay,
+  onStep,
+  onSpeed,
 }: {
   year: number;
   min: number;
   max: number;
   playing: boolean;
   step: number;
+  speed: number;
+  onStep: (step: number) => void;
+  onSpeed: (speed: number) => void;
   /** Эпохи хранилища — полосы под ползунком */
   bands: TimeBand[];
   /** Годы заметок хранилища — засечки */
@@ -134,6 +145,16 @@ export function GlobeTimeBar({
         >
           {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </Button>
+        {/* Скорость проигрывания: щелчок — следующая */}
+        <button
+          type="button"
+          onClick={() => onSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length] ?? 1)}
+          className="hidden h-8 shrink-0 rounded-md px-1.5 text-[11px] tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground sm:block"
+          title="Скорость проигрывания — щёлкните, чтобы сменить"
+          aria-label={`Скорость ×${speed}`}
+        >
+          ×{speed}
+        </button>
         <Button
           variant="ghost"
           size="icon"
@@ -179,6 +200,28 @@ export function GlobeTimeBar({
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
+        <div
+          className="flex shrink-0 items-center rounded-md bg-muted/40 p-0.5"
+          role="group"
+          aria-label="Шаг стрелок, лет"
+          title="На сколько лет двигают ‹ › и стрелки клавиатуры"
+        >
+          {STEPS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onStep(s)}
+              aria-pressed={s === step}
+              className={cn(
+                'h-6 rounded px-1.5 text-[11px] tabular-nums transition-colors',
+                s === step ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {s}
+            </button>
+          ))}
+          <span className="hidden px-1 text-[10px] text-muted-foreground sm:inline">{plural(step, 'год', 'года', 'лет')}</span>
+        </div>
         <span className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground">
           {epoch && <span className="mr-1.5 font-medium text-foreground/80">{epoch.title}</span>}
           <span className="hidden sm:inline">{info}</span>

@@ -6,7 +6,8 @@ import { excerptOf } from '@/arche/excerpt';
 import { noteTypeLabel, noteTypeMeta } from '@/arche/noteTypes';
 import { formatYear } from '@/arche/timeSpan';
 import { polityOfPlace, stateName, wikipediaUrl, type StateShape } from '@/arche/borders';
-import { eventsAround, isAlive, windowFor, type ContextData } from '@/arche/context';
+import { eventsAround, isAlive, windowFor, type ContextData, type ContextEvent, type ContextPerson } from '@/arche/context';
+import { cityExistsAt, cityNameAt, cityNames, type CitiesData, type City } from '@/arche/cities';
 import {
   capitalAt,
   commonsPage,
@@ -861,6 +862,188 @@ export function KbPanel({
         </div>
         <p className="border-t border-border/40 pt-3 text-[12px] leading-relaxed text-muted-foreground">
           Справка из Wikidata, а не заметка хранилища.
+        </p>
+      </div>
+    </>
+  );
+}
+
+/** Что собрано о городе-ориентире: считается в GlobeView, где есть все данные */
+export interface CityFacts {
+  /** В чьих границах город в выбранный год */
+  state: { key: string; name: string } | null;
+  union: string | null;
+  born: ContextPerson[];
+  died: ContextPerson[];
+  events: ContextEvent[];
+  nearby: LocatedNote[];
+}
+
+function CityList<T extends { id: string; title: string }>({
+  title,
+  items,
+  sub,
+  onPick,
+}: {
+  title: string;
+  items: T[];
+  sub: (item: T) => string;
+  onPick: (item: T) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section>
+      <SectionTitle>{title}</SectionTitle>
+      <ul className="space-y-0.5">
+        {items.map((item) => (
+          <li key={item.id}>
+            <button
+              type="button"
+              onClick={() => onPick(item)}
+              className="w-full rounded px-1 py-0.5 text-left hover:bg-accent/40"
+            >
+              <span className="text-foreground">{item.title}</span>
+              <span className="text-muted-foreground"> · {sub(item)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * Город-ориентир: как назывался, чей был в этот год, кто здесь родился
+ * и умер, что здесь происходило. Сам город — не заметка, но через него
+ * видно соседство: в Кёнигсберге родились Кант и Гофман, умер Кант,
+ * а в 1758 году город присягнул Елизавете
+ */
+export function CityPanel({
+  city,
+  data,
+  year,
+  facts,
+  onClose,
+  onBack,
+  onSelect,
+}: {
+  city: City;
+  data: CitiesData;
+  year: number;
+  facts: CityFacts;
+  onClose: () => void;
+  onBack?: () => void;
+  onSelect: (selection: GlobeSelection) => void;
+}) {
+  const nameNow = cityNameAt(data, city, year);
+  const names = cityNames(data, city);
+  const founded =
+    city.from === null
+      ? null
+      : city.approx
+        ? 'в античности (точный год не указан)'
+        : formatYear(city.from);
+  const wiki = wikipediaUrl(city);
+  const span = (from: number | null, to: number | null) =>
+    from === null ? `до ${formatYear(to!)}` : to === null ? `с ${formatYear(from)}` : `${formatYear(from)} — ${formatYear(to)}`;
+
+  return (
+    <>
+      <PanelHeader
+        title={nameNow}
+        subtitle={
+          <>
+            Город{founded && !city.approx ? ` · основан ${founded}` : ''}
+            {nameNow !== city.name && <> · сейчас {city.name}</>}
+          </>
+        }
+        onClose={onClose}
+        onBack={onBack}
+      />
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 text-sm">
+        {!cityExistsAt(city, year) && (
+          <p className="rounded-md bg-muted/40 px-3 py-2 text-[13px] text-muted-foreground">
+            {city.to !== null && year > city.to
+              ? `В ${formatYear(year)} году города уже нет: ${formatYear(city.to)} — последний год, указанный в Wikidata.`
+              : `В ${formatYear(year)} году города ещё нет${city.from !== null && !city.approx ? ` — он основан в ${formatYear(city.from)}` : ''}.`}
+          </p>
+        )}
+        <dl className="divide-y divide-border/30">
+          <FactRow label={`В ${formatYear(year)}`}>
+            {facts.state ? (
+              <button
+                type="button"
+                onClick={() => onSelect({ kind: 'state', key: facts.state!.key })}
+                className="text-left underline decoration-border underline-offset-2 hover:decoration-foreground"
+              >
+                {facts.state.name}
+              </button>
+            ) : (
+              <span className="text-muted-foreground">границ на карте нет</span>
+            )}
+            {facts.union && <span className="text-muted-foreground"> · в составе: {facts.union}</span>}
+          </FactRow>
+          {founded && <FactRow label="Основан">{founded}</FactRow>}
+          {city.to !== null && <FactRow label="Упразднён">{formatYear(city.to)}</FactRow>}
+          {names.length > 0 && (
+            <FactRow label="Названия">
+              <ul>
+                {names.map((n) => (
+                  <li key={`${n.name}-${n.from}`} className={cn(n.name === nameNow && 'font-medium')}>
+                    {n.name} <span className="text-muted-foreground">· {span(n.from, n.to)}</span>
+                  </li>
+                ))}
+              </ul>
+            </FactRow>
+          )}
+        </dl>
+
+        <WikiExtract article={city} showThumbnail />
+
+        {facts.nearby.length > 0 && (
+          <section>
+            <SectionTitle>В хранилище</SectionTitle>
+            <NoteList items={facts.nearby} />
+          </section>
+        )}
+
+        <CityList
+          title="Родились здесь"
+          items={facts.born}
+          sub={(p) => `${formatYear(p.birth)}${p.death ? ` — ${formatYear(p.death)}` : ''}`}
+          onPick={(p) => onSelect({ kind: 'context', id: p.id })}
+        />
+        <CityList
+          title="Умерли здесь"
+          items={facts.died}
+          sub={(p) => `${formatYear(p.birth)}${p.death ? ` — ${formatYear(p.death)}` : ''}`}
+          onPick={(p) => onSelect({ kind: 'context', id: p.id })}
+        />
+        <CityList
+          title="Что здесь происходило"
+          items={facts.events}
+          sub={(e) => `${formatYear(e.year)}${e.end && e.end !== e.year ? ` — ${formatYear(e.end)}` : ''}`}
+          onPick={(e) => onSelect({ kind: 'context', id: e.id })}
+        />
+
+        <div className="flex flex-wrap gap-2">
+          {wiki && (
+            <Button variant="ghost" size="sm" asChild>
+              <a href={wiki} target="_blank" rel="noreferrer">
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                Википедия
+              </a>
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" asChild>
+            <a href={`https://www.wikidata.org/wiki/${city.id}`} target="_blank" rel="noreferrer">
+              Wikidata
+            </a>
+          </Button>
+        </div>
+        <p className="border-t border-border/40 pt-3 text-[12px] leading-relaxed text-muted-foreground">
+          Город — ориентир из Wikidata, а не заметка хранилища. Родившиеся — по месту рождения в Wikidata,
+          события — в двадцати километрах вокруг.
         </p>
       </div>
     </>

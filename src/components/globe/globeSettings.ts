@@ -14,6 +14,10 @@ export type Density = 'less' | 'normal' | 'more';
 export interface GlobeLayers {
   states: boolean;
   capitals: boolean;
+  /** Города-ориентиры из Wikidata */
+  cities: boolean;
+  /** Реки, озёра, подписи морей, хребтов и пустынь */
+  geography: boolean;
   background: boolean;
   events: boolean;
   people: boolean;
@@ -41,6 +45,8 @@ export const DEFAULT_SETTINGS: GlobeSettings = {
   layers: {
     states: true,
     capitals: true,
+    cities: true,
+    geography: true,
     background: true,
     events: true,
     people: true,

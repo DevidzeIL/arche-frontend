@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, BookOpen, ExternalLink, Globe2, Swords } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, ExternalLink, Globe2, Route, Swords } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
 import { placesForGraph } from '@/arche/geo';
 import { polityOfPlace } from '@/arche/sovereignty';
@@ -170,6 +170,8 @@ export function KbPage() {
   let description: string | null = null;
   let article: { ru?: string | null; en?: string | null } = {};
   let globeHref: string | null = null;
+  /** Маршрут по глобусу: война — по сражениям, течение — по людям */
+  let tourHref: string | null = null;
   let from: number | undefined;
   let to: number | undefined;
 
@@ -185,6 +187,8 @@ export function KbPage() {
     if (item.t === 'war') globeHref = `/globe?war=${id}${item.f !== undefined ? `&year=${item.f}` : ''}`;
     else if (item.t === 'battle') globeHref = `/globe?kb=${id}${item.w ? `&war=${item.w}` : ''}${item.f !== undefined ? `&year=${item.f}` : ''}`;
     else if (item.c) globeHref = `/globe?kb=${id}${item.f !== undefined ? `&year=${item.f}` : ''}`;
+    if (item.t === 'war' && battlesOf(kb, id).filter((b) => kb.items[b]?.c).length >= 2) tourHref = `/globe?tour=war:${id}`;
+    if (item.t === 'movement' && (links?.members[id]?.length ?? 0) >= 2) tourHref = `/globe?tour=movement:${id}`;
   } else if (entity.kind === 'polity') {
     const base = entity.entries.find((p) => !p.u) ?? entity.entries[0];
     title = base.ru ?? base.n;
@@ -264,6 +268,14 @@ export function KbPage() {
                       <Globe2 className="mr-1.5 h-3.5 w-3.5" aria-hidden />
                     )}
                     На глобусе
+                  </Link>
+                </Button>
+              )}
+              {tourHref && (
+                <Button size="sm" variant="outline" asChild>
+                  <Link to={tourHref}>
+                    <Route className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                    {entity.kind === 'kb' && entity.item.t === 'war' ? 'Пройти по сражениям' : 'Пройти по людям'}
                   </Link>
                 </Button>
               )}

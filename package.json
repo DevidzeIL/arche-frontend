@@ -11,6 +11,8 @@
     "lint:vault": "node scripts/lint-vault.mjs",
     "borders": "node --max-old-space-size=8192 scripts/build-borders.mjs",
     "context": "node scripts/build-context.mjs",
+    "cities": "node scripts/build-cities.mjs",
+    "geography": "node scripts/build-geography.mjs",
     "kb": "node scripts/build-kb.mjs"
   },
   "dependencies": {

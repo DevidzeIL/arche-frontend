@@ -12,6 +12,10 @@ export function LayerSymbol({ kind }: { kind: keyof GlobeLayers | 'place' }) {
       return <span className="h-2.5 w-3.5 rounded-sm border border-foreground/40 bg-[hsl(200_55%_60%/0.35)]" />;
     case 'capitals':
       return <span className="h-2 w-2 border border-foreground/70 bg-background" />;
+    case 'cities':
+      return <span className="h-2 w-2 rounded-full border border-foreground/70 bg-background" />;
+    case 'geography':
+      return <span className="h-0 w-3.5 rounded-full border-t-2 border-[hsl(206_55%_56%)]" />;
     case 'background':
       return <span className="h-2.5 w-3.5 rounded-sm border border-dashed border-foreground/40 bg-foreground/10" />;
     case 'events':
@@ -28,6 +32,8 @@ export function LayerSymbol({ kind }: { kind: keyof GlobeLayers | 'place' }) {
 const LAYERS: Array<{ key: keyof GlobeLayers; label: string; hint: string }> = [
   { key: 'states', label: 'Границы', hint: 'Государства на выбранный год; пунктир — объединения' },
   { key: 'capitals', label: 'Столицы', hint: 'Подписываются при приближении' },
+  { key: 'cities', label: 'Города', hint: 'Чем ближе — тем больше; названия того года: Константинополь, Кёнигсберг' },
+  { key: 'geography', label: 'Реки, моря, горы', hint: 'Реки и озёра, подписи морей, хребтов и пустынь — как в атласе' },
   { key: 'background', label: 'Народы', hint: 'Где государств нет — народы и культуры' },
   { key: 'events', label: 'События', hint: 'Сражения, договоры, соборы, стройки' },
   { key: 'people', label: 'Люди', hint: 'Кто жил в это время, по месту рождения' },
@@ -40,14 +46,6 @@ const DENSITIES: Array<{ key: Density; label: string }> = [
   { key: 'normal', label: 'Обычно' },
   { key: 'more', label: 'Гуще' },
 ];
-
-const STEPS = [
-  { value: 1, label: 'год' },
-  { value: 10, label: '10 лет' },
-  { value: 100, label: 'век' },
-];
-
-const SPEEDS = [0.5, 1, 2, 4];
 
 function Segmented<T extends string | number>({
   options,
@@ -115,14 +113,44 @@ function Chips({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  onAll,
+  onNone,
+}: {
+  title: string;
+  children: React.ReactNode;
+  /** «Все» и «ничего» — для списков, где включать по одному долго */
+  onAll?: () => void;
+  onNone?: () => void;
+}) {
   return (
     <section className="space-y-1.5 border-t border-border/40 pt-2.5 first:border-t-0 first:pt-0">
-      <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground">{title}</h3>
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground">{title}</h3>
+        {(onAll || onNone) && (
+          <span className="flex gap-2 text-[11px]">
+            {onAll && (
+              <button type="button" onClick={onAll} className="text-muted-foreground hover:text-foreground">
+                все
+              </button>
+            )}
+            {onNone && (
+              <button type="button" onClick={onNone} className="text-muted-foreground hover:text-foreground">
+                ничего
+              </button>
+            )}
+          </span>
+        )}
+      </div>
       {children}
     </section>
   );
 }
+
+const ALL_LAYERS = (value: boolean): GlobeLayers =>
+  Object.fromEntries(LAYERS.map(({ key }) => [key, value])) as unknown as GlobeLayers;
 
 export function GlobeSettingsPanel({
   settings,
@@ -145,7 +173,11 @@ export function GlobeSettingsPanel({
 
   return (
     <div className="pointer-events-auto max-h-[min(70vh,640px)] w-[min(320px,calc(100vw-24px))] space-y-3 overflow-y-auto rounded-xl border border-border/50 bg-card/95 p-3 text-sm backdrop-blur-sm">
-      <Section title="Показывать">
+      <Section
+        title="Показывать"
+        onAll={() => onUpdate({ layers: ALL_LAYERS(true) })}
+        onNone={() => onUpdate({ layers: ALL_LAYERS(false) })}
+      >
         <ul className="space-y-1">
           <li className="flex items-start gap-2">
             <span className="w-[13px]" aria-hidden />
@@ -191,7 +223,11 @@ export function GlobeSettingsPanel({
       </Section>
 
       {eventKinds.length > 0 && (
-        <Section title="События">
+        <Section
+          title="События"
+          onAll={() => onUpdate({ hiddenEventKinds: [], layers: { ...settings.layers, events: true } })}
+          onNone={() => onUpdate({ hiddenEventKinds: eventKinds.map((k) => k.key) })}
+        >
           <Chips
             items={eventKinds}
             hidden={settings.hiddenEventKinds}
@@ -202,7 +238,11 @@ export function GlobeSettingsPanel({
       )}
 
       {peopleGroups.length > 0 && (
-        <Section title="Люди">
+        <Section
+          title="Люди"
+          onAll={() => onUpdate({ hiddenPeopleGroups: [], layers: { ...settings.layers, people: true } })}
+          onNone={() => onUpdate({ hiddenPeopleGroups: peopleGroups.map((g) => g.key) })}
+        >
           <Chips
             items={peopleGroups}
             hidden={settings.hiddenPeopleGroups}
@@ -216,25 +256,10 @@ export function GlobeSettingsPanel({
         <Segmented options={DENSITIES} value={settings.density} onChange={(density) => onUpdate({ density })} />
       </Section>
 
-      <Section title="Время">
-        <div className="grid grid-cols-[4.5rem_1fr] items-center gap-x-2 gap-y-1.5">
-          <span className="text-[12px] text-muted-foreground">Шаг ‹ ›</span>
-          <Segmented
-            options={STEPS.map((s) => ({ key: s.value, label: s.label }))}
-            value={settings.step}
-            onChange={(step) => onUpdate({ step })}
-          />
-          <span className="text-[12px] text-muted-foreground">Скорость</span>
-          <Segmented
-            options={SPEEDS.map((s) => ({ key: s, label: `×${s}` }))}
-            value={settings.speed}
-            onChange={(speed) => onUpdate({ speed })}
-          />
-        </div>
-        <p className="text-[11px] leading-snug text-muted-foreground">
-          Стрелки ← → двигают год на шаг, пробел — проиграть или остановить.
-        </p>
-      </Section>
+      <p className="text-[11px] leading-snug text-muted-foreground">
+        Шаг и скорость времени — на шкале внизу. Стрелки ← → двигают год на шаг,
+        пробел — проиграть или остановить.
+      </p>
 
       <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
         <button

@@ -166,6 +166,12 @@ const pwaPlugin = VitePWA({
         options: { cacheName: 'arche-context' },
       },
       {
+        // Реки, озёра, подписи морей и хребтов — меняются только при пересборке
+        urlPattern: ({ url }) => url.pathname.startsWith('/geo/'),
+        handler: 'StaleWhileRevalidate',
+        options: { cacheName: 'arche-geo' },
+      },
+      {
         // Справки Википедии в панелях глобуса: показать прошлую можно и без сети
         urlPattern: ({ url }) =>
           /^(ru|en).wikipedia.org$/.test(url.hostname) && url.pathname.startsWith('/api/rest_v1/page/summary/'),

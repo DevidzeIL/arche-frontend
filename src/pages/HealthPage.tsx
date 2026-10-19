@@ -1,11 +1,36 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, ChevronDown, ChevronRight, Copy, Stethoscope } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy, Sparkles, Stethoscope } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
 import { placesForGraph } from '@/arche/geo';
 import { buildHealthReport, fixSnippet, GAP_META, type GapKind } from '@/arche/health';
 import { noteTypeLabel, noteTypeMeta } from '@/arche/noteTypes';
 import { cn } from '@/lib/utils';
+import { noteCandidates, type Candidate } from '@/arche/candidates';
+import { loadKb, loadKbLinks, type Kb, type KbLinks } from '@/arche/kb';
+import { useVaultLinks } from '@/arche/vaultLinks';
+
+/**
+ * О ком хранилище уже говорит, не написав: связи из базы знаний,
+ * концы которых — свои заметки. Грузится отдельно: база весит полмегабайта
+ */
+function useCandidates(): { items: Candidate[]; ready: boolean } {
+  const notes = useArcheStore((s) => s.notes);
+  const vault = useVaultLinks();
+  const [data, setData] = useState<{ kb: Kb | null; links: KbLinks | null } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    Promise.all([loadKb(), loadKbLinks()]).then(([kb, links]) => alive && setData({ kb, links }));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const items = useMemo(
+    () => (data?.links && vault.ready ? noteCandidates(notes, vault, data.kb, data.links) : []),
+    [data, vault, notes]
+  );
+  return { items, ready: data !== null && vault.ready };
+}
 
 /** Сколько заметок в списке показывать до нажатия «ещё» */
 const PREVIEW = 12;
@@ -71,6 +96,7 @@ export function HealthPage() {
     });
   }, [notes, graph, getBacklinks]);
 
+  const candidates = useCandidates();
   const [expanded, setExpanded] = useState<Set<GapKind>>(new Set());
   const toggle = (kind: GapKind) =>
     setExpanded((current) => {
@@ -192,6 +218,39 @@ export function HealthPage() {
               );
             })}
           </div>
+        )}
+
+        {candidates.items.length > 0 && (
+          <section className="mt-10 space-y-3">
+            <div>
+              <h2 className="flex items-center gap-2 font-serif text-xl">
+                <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden />
+                Кандидаты в заметки
+              </h2>
+              <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                О них хранилище уже говорит, не написав: по Wikidata они связаны сразу с несколькими
+                своими заметками — влияние, течение, участие. Это подсказка, а не план.
+              </p>
+            </div>
+            <ul className="divide-y divide-border/30 rounded-lg border border-border/40">
+              {candidates.items.map((c) => (
+                <li key={c.id} className="flex items-start gap-3 px-4 py-2.5">
+                  <span className="mt-0.5 w-6 shrink-0 text-right font-serif text-lg tabular-nums text-muted-foreground">{c.score}</span>
+                  <span className="min-w-0 flex-1">
+                    <Link to={`/kb/${c.id}`} className="font-medium underline decoration-border underline-offset-2 hover:decoration-foreground">
+                      {c.name}
+                    </Link>
+                    <span className="text-sm text-muted-foreground"> · {c.kind}</span>
+                    <span className="block text-[13px] leading-snug text-muted-foreground">
+                      {c.reasons.slice(0, 4).join(' · ')}
+                      {c.reasons.length > 4 && ` · и ещё ${c.reasons.length - 4}`}
+                    </span>
+                  </span>
+                  <CopyButton text={c.name} />
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </div>
     </div>

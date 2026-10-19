@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { geoContains, geoDistance } from 'd3-geo';
-import { ChartGantt, Clock, Globe2, Map as MapIcon, Search, Settings2, Swords, X } from 'lucide-react';
+import { ChartGantt, Clock, Eye, EyeOff, Globe2, Map as MapIcon, Route, Search, Settings2, Swords, X } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
 import { normalizeTitle } from '@/arche/normalize';
 import { notesByPlace, placesForGraph } from '@/arche/geo';
@@ -10,6 +10,8 @@ import { formatYear } from '@/arche/timeSpan';
 import { loadBordersIndex, polityOfPlace, stateName, useBordersAt } from '@/arche/borders';
 import { polityKey, type BordersIndex } from '@/arche/bordersData';
 import { categoryOf, COLORINGS, type Coloring } from '@/arche/coloring';
+import { atlasHues } from '@/arche/atlasColors';
+import { GlobeLegend } from './GlobeLegend';
 import {
   eventsAround,
   isAlive,
@@ -37,16 +39,27 @@ import {
   type GlobeArc,
   type GlobeMarker,
   type GlobeMode,
+  type CityPoint,
   type GlobeSelection,
+  type LifeLine,
+  type Spotlight,
   type StateLayer,
 } from './GlobeCanvas';
+import { cityExistsAt, cityNameAt, loadCities, renamedAt, UNDATED_FROM, type CitiesData } from '@/arche/cities';
+import { useVaultLinks } from '@/arche/vaultLinks';
+import { buildCourses } from '@/arche/learning/curriculum';
+import { useProgressStore } from '@/arche/learning/progressStore';
+import { chapterTour, kmBetween, movementPlaced, movementTour, warTour, type Tour } from '@/arche/tours';
+import { GlobeTour, GlobeTourMenu, QUIZ_SIZE, type TourOption, type TourQuiz } from './GlobeTour';
 import {
+  CityPanel,
   ContextPanel,
   KbPanel,
   MeanwhilePanel,
   PlacePanel,
   PRESENT,
   StatePanel,
+  type CityFacts,
   type LocatedNote,
 } from './GlobePanels';
 import { DENSITY_FACTOR, useGlobeSettings } from './globeSettings';
@@ -87,6 +100,8 @@ function selectionFromParams(params: URLSearchParams): GlobeSelection | null {
   if (state) return { kind: 'state', key: state };
   const item = params.get('item');
   if (item) return { kind: 'context', id: item };
+  const city = params.get('city');
+  if (city) return { kind: 'city', id: city };
   const kb = params.get('kb');
   return kb ? { kind: 'kb', id: kb } : null;
 }
@@ -186,8 +201,22 @@ export function GlobeView() {
   const [war, setWar] = useState<string | null>(initial.current.get('war'));
   const [hintsOpen, setHintsOpen] = useState(() => !seenHints());
   const [lanesOpen, setLanesOpen] = useState(false);
+  /** Маршрут: глава курса, война по сражениям, течение по людям — см. tours.ts */
+  const [tourId, setTourId] = useState<string | null>(() => initial.current.get('tour'));
+  const [tourStep, setTourStep] = useState(() => Math.max(0, Number(initial.current.get('step')) || 0));
+  const [toursOpen, setToursOpen] = useState(false);
+  const [quiz, setQuiz] = useState<TourQuiz | null>(null);
+  /**
+   * Фокус: в режиме войны или маршрута на карте только то, что к ним
+   * относится, — сражения, шаги, границы. Люди, события, дуги и свои места
+   * прячутся, чтобы не было каши; одной кнопкой их можно вернуть
+   */
+  const [showRest, setShowRest] = useState(false);
+  const lessonsRead = useProgressStore((s) => s.lessonsRead);
+  const markLessonRead = useProgressStore((s) => s.markLessonRead);
+  const notesById = useArcheStore((s) => s.notesById);
   const navigate = useNavigate();
-  const [focus, setFocus] = useState<{ lon: number; lat: number; token: number } | null>(null);
+  const [focus, setFocus] = useState<{ lon: number; lat: number; token: number; zoom?: number } | null>(null);
   /** Выбрали государство, которого ещё нет в загруженном веке — повернуться, когда появится */
   const pendingFocus = useRef<string | null>(null);
 
@@ -217,10 +246,15 @@ export function GlobeView() {
       if (selection?.kind === 'state') next.set('state', selection.key);
       if (selection?.kind === 'context') next.set('item', selection.id);
       if (selection?.kind === 'kb') next.set('kb', selection.id);
+      if (selection?.kind === 'city') next.set('city', selection.id);
+      if (tourId) {
+        next.set('tour', tourId);
+        next.set('step', String(tourStep));
+      }
       setParams(next, { replace: true });
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [roundedYear, mode, settings.coloring, war, selection, playing, setParams]);
+  }, [roundedYear, mode, settings.coloring, war, selection, playing, setParams, tourId, tourStep]);
 
   // Проигрывание истории: год ползёт от начала к концу
   useEffect(() => {
@@ -296,7 +330,8 @@ export function GlobeView() {
 
   const [context, setContext] = useState<ContextData | null>(null);
   useEffect(() => {
-    if (!layers.events && !layers.people && !meanwhileOpen && selection?.kind !== 'context') return;
+    const tourNeeds = tourId?.startsWith('movement:') || toursOpen;
+    if (!layers.events && !layers.people && !meanwhileOpen && selection?.kind !== 'context' && selection?.kind !== 'city' && !tourNeeds) return;
     let alive = true;
     loadContext().then((data) => {
       if (!alive || !data) return;
@@ -306,14 +341,28 @@ export function GlobeView() {
     return () => {
       alive = false;
     };
-  }, [layers.events, layers.people, meanwhileOpen, selection, notes]);
+  }, [layers.events, layers.people, meanwhileOpen, selection, notes, tourId, toursOpen]);
+
+  // Города-ориентиры: слой включён или город выбран по ссылке
+  const [cities, setCities] = useState<CitiesData | null>(null);
+  const needCities = layers.cities || selection?.kind === 'city';
+  useEffect(() => {
+    if (!needCities) return;
+    let alive = true;
+    loadCities().then((data) => alive && setCities(data));
+    return () => {
+      alive = false;
+    };
+  }, [needCities]);
 
   // База знаний: для поиска, войн и справок — грузится, когда понадобилась
   const [kb, setKb] = useState<Kb | null>(null);
   /** База не собрана (pnpm kb) — сказать об этом, а не «загружаю» вечно */
   const [kbMissing, setKbMissing] = useState(false);
   const [kbLinks, setKbLinks] = useState<KbLinks | null>(null);
-  const [wantKb, setWantKb] = useState(Boolean(initial.current.get('war') || initial.current.get('kb')));
+  const [wantKb, setWantKb] = useState(
+    Boolean(initial.current.get('war') || initial.current.get('kb') || /^(war|movement):/.test(initial.current.get('tour') ?? ''))
+  );
   useEffect(() => {
     if (!wantKb && selection?.kind !== 'kb' && !war && !lanesOpen) return;
     let alive = true;
@@ -334,6 +383,8 @@ export function GlobeView() {
     [geo.located, year]
   );
 
+  // Своё место называется так, как город звался в этот год: «Санкт-Петербург» в 1939-м — Ленинград
+  const vault = useVaultLinks();
   const markers = useMemo<GlobeMarker[]>(() => {
     const counts = new Map<string, number>();
     for (const item of visible) {
@@ -346,12 +397,14 @@ export function GlobeView() {
     return geo.index.places
       .map((place) => {
         const count = counts.get(place.id) ?? 0;
-        return { place, count, weight: count / max };
+        const qid = vault.qidOf(place.id);
+        const label = qid && cities ? (renamedAt(cities, qid, roundedYear) ?? undefined) : undefined;
+        return { place, count, weight: count / max, label };
       })
       // Пустое место на глобусе — просто шум: пока там ничего не произошло,
       // показывать нечего
       .filter((marker) => marker.count > 0);
-  }, [geo.index.places, visible]);
+  }, [geo.index.places, visible, vault, cities, roundedYear]);
 
   const selectedPlaceId = selection?.kind === 'place' ? selection.id : null;
 
@@ -398,6 +451,9 @@ export function GlobeView() {
   const warItem = war && kb ? kb.items[war] : null;
   const warParticipants = useMemo(() => new Set(warItem?.p ?? []), [warItem]);
 
+  /** Цвета атласа на этот год: соседи различимы, у каждого государства свой цвет */
+  const atlas = useMemo(() => atlasHues(borders.states), [borders.states]);
+
   const stateLayers = useMemo<StateLayer[]>(
     () =>
       borders.states.map((shape) => {
@@ -408,14 +464,14 @@ export function GlobeView() {
           ...shape,
           ru: stateName(shape, roundedYear),
           capital: polityFacts ? capitalAt(polityFacts, roundedYear)?.name : undefined,
-          hue: category?.hue ?? shape.hue,
+          hue: category?.hue ?? atlas.get(shape.key) ?? shape.hue,
           nodata: settings.coloring !== 'states' && !category,
           category: category?.label,
           muted: category?.muted,
           emphasis: warItem ? (qid && warParticipants.has(qid) ? 'on' : 'off') : undefined,
         };
       }),
-    [borders.states, roundedYear, facts, settings.coloring, warItem, warParticipants]
+    [borders.states, roundedYear, facts, settings.coloring, warItem, warParticipants, atlas]
   );
 
   /** Легенда раскраски: самые «просторные» категории на карте сейчас */
@@ -436,6 +492,9 @@ export function GlobeView() {
 
   const backgroundLayers = useMemo<BackgroundLayer[]>(() => borders.background, [borders.background]);
 
+  /** Города, у которых были другие имена: по ним столица получает название своего года */
+  const renamedCities = useMemo(() => (cities ? cities.cities.filter((c) => cities.renames[c.id]) : []), [cities]);
+
   const capitals = useMemo<CapitalPoint[]>(() => {
     if (!facts || !layers.capitals || !layers.states) return [];
     const seen = new Set<string>();
@@ -448,16 +507,42 @@ export function GlobeView() {
       const id = `${capital.name}|${capital.lon}|${capital.lat}`;
       if (seen.has(id)) continue;
       seen.add(id);
+      // В Wikidata столица подписана нынешним именем: Данциг 1939 года — «Гданьск»
+      const renamed = renamedCities.find((c) => Math.abs(c.lon - capital.lon) < 0.15 && Math.abs(c.lat - capital.lat) < 0.1);
       out.push({
         key: shape.key,
-        name: capital.name,
+        name: renamed && cities ? cityNameAt(cities, renamed, roundedYear) : capital.name,
         state: stateName(shape, roundedYear),
         lon: capital.lon,
         lat: capital.lat,
       });
     }
     return out;
-  }, [facts, borders.states, roundedYear, layers.capitals, layers.states]);
+  }, [facts, borders.states, roundedYear, layers.capitals, layers.states, renamedCities, cities]);
+
+  /**
+   * Города на этот год, с названием этого года. Город под своим местом
+   * хранилища или под столицей не рисуется: там уже стоит своя точка
+   */
+  const cityPoints = useMemo<CityPoint[]>(() => {
+    if (!cities || !layers.cities) return [];
+    const taken: Array<[number, number]> = [
+      ...markers.filter((m) => m.place.geo.scale !== 'region').map((m): [number, number] => [m.place.geo.lon, m.place.geo.lat]),
+      ...capitals.map((c): [number, number] => [c.lon, c.lat]),
+    ];
+    const occupied = (lon: number, lat: number) =>
+      taken.some(([x, y]) => Math.abs(x - lon) < 0.12 && Math.abs(y - lat) < 0.08);
+    const out: CityPoint[] = [];
+    for (const city of cities.cities) {
+      if (!cityExistsAt(city, roundedYear) || occupied(city.lon, city.lat)) continue;
+      const name = cityNameAt(cities, city, roundedYear);
+      const parts = ['город'];
+      if (city.from !== null && !city.approx) parts.push(`основан ${formatYear(city.from)}`);
+      if (name !== city.name) parts.push(`сейчас ${city.name}`);
+      out.push({ id: city.id, name, lon: city.lon, lat: city.lat, rank: out.length, sub: parts.join(' · ') });
+    }
+    return out;
+  }, [cities, layers.cities, roundedYear, markers, capitals]);
 
   const contextNow = useMemo(() => {
     if (!context) return { events: [], people: [] };
@@ -557,6 +642,127 @@ export function GlobeView() {
     );
   }, [selection, context]);
 
+  const selectedCity = selection?.kind === 'city' && cities ? (cities.byId.get(selection.id) ?? null) : null;
+
+  const courses = useMemo(() => buildCourses(notes), [notes]);
+  const tour = useMemo<Tour | null>(() => {
+    if (!tourId) return null;
+    const [kind, ...rest] = tourId.split(':');
+    const id = rest.join(':');
+    if (kind === 'chapter') {
+      for (const course of courses) {
+        const chapter = course.chapters.find((ch) => ch.id === id);
+        if (chapter) return chapterTour({ course, chapter, graph, notesById, placesOf: geo.placesOf });
+      }
+      return null;
+    }
+    if (kind === 'war' && kb) return warTour(kb, id);
+    if (kind === 'movement' && kb && kbLinks && context) return movementTour(kb, kbLinks, context, id);
+    return null;
+  }, [tourId, courses, graph, notesById, geo.placesOf, kb, kbLinks, context]);
+  const tourIndex = tour ? Math.min(tourStep, tour.steps.length - 1) : 0;
+  const step = tour ? tour.steps[tourIndex] : null;
+
+  /** Подсветка маршрута: текущий шаг, а в самопроверке — правильный ответ после щелчка */
+  const tourSpot = useMemo<Spotlight | null>(() => {
+    if (!tour) return null;
+    if (quiz) {
+      if (!quiz.revealed || quiz.index >= quiz.steps.length) return null;
+      const asked = tour.steps[quiz.steps[quiz.index]];
+      return asked.at ? { lon: asked.at[0], lat: asked.at[1], label: asked.title } : null;
+    }
+    return step?.at ? { lon: step.at[0], lat: step.at[1], label: step.title } : null;
+  }, [tour, quiz, step]);
+
+  /** Чей город в этот год, кто здесь родился и умер, что здесь было */
+  const cityFacts = useMemo<CityFacts | null>(() => {
+    if (!selectedCity || !cities) return null;
+    const at: [number, number] = [selectedCity.lon, selectedCity.lat];
+    const near = (lon: number, lat: number, km: number) => distanceKm(at, [lon, lat]) <= km;
+    const top = <T extends { links: number }>(list: T[]) => [...list].sort((a, b) => b.links - a.links).slice(0, 12);
+    const names = new Set([selectedCity.name, ...(cities.renames[selectedCity.id] ?? []).map((r) => r[2])]);
+    const born = context ? top(context.people.filter((p) => near(p.lon, p.lat, 12))).sort((a, b) => a.birth - b.birth) : [];
+    const died = context
+      ? top(context.people.filter((p) => p.deathPlace !== null && names.has(p.deathPlace))).sort(
+          (a, b) => (a.death ?? 0) - (b.death ?? 0)
+        )
+      : [];
+    const events = context ? top(context.events.filter((e) => near(e.lon, e.lat, 20))).sort((a, b) => a.year - b.year) : [];
+    const nearby = geo.located
+      .filter((item) =>
+        item.placeIds.some((id) => {
+          const place = geo.index.byId.get(id);
+          return place !== undefined && place.geo.scale !== 'region' && near(place.geo.lon, place.geo.lat, 25);
+        })
+      )
+      .slice(0, 8);
+    // Границы упрощены, и город на берегу (Константинополь на Босфоре) часто
+    // оказывается в воде. Поэтому проверяется не только точка, но и кольцо
+    // в ~15 км вокруг: сама точка весит втрое больше любой из соседних
+    const probes: Array<[[number, number], number]> = [
+      [at, 3],
+      ...Array.from({ length: 8 }, (_, i): [[number, number], number] => {
+        const angle = (i * Math.PI) / 4;
+        return [[at[0] + 0.2 * Math.cos(angle), at[1] + 0.14 * Math.sin(angle)], 1];
+      }),
+    ];
+    type Shape = (typeof borders.states)[number];
+    let state: Shape | null = null;
+    let union: Shape | null = null;
+    let stateScore = 0;
+    let unionScore = 0;
+    for (const shape of borders.states) {
+      const [w, s, e, n] = shape.bbox;
+      if (at[0] < w - 0.3 || at[0] > e + 0.3 || at[1] < s - 0.3 || at[1] > n + 0.3) continue;
+      const score = probes.reduce((sum, [point, weight]) => sum + (geoContains(shape.area, point) ? weight : 0), 0);
+      if (score === 0) continue;
+      if (shape.union) {
+        if (score > unionScore || (score === unionScore && union && shape.size < union.size)) [union, unionScore] = [shape, score];
+      } else if (score > stateScore || (score === stateScore && state && shape.size < state.size)) {
+        [state, stateScore] = [shape, score];
+      }
+    }
+    return {
+      state: state ? { key: state.key, name: stateName(state, roundedYear) } : null,
+      union: union ? stateName(union, roundedYear) : null,
+      born,
+      died,
+      events,
+      nearby,
+    };
+  }, [selectedCity, cities, context, geo.located, geo.index.byId, borders.states, roundedYear]);
+
+  /** Где выбранное на карте: человек, событие, сражение, место — подсвечивается поверх всего */
+  const spotlight = useMemo<Spotlight | null>(() => {
+    // В самопроверке выбранное не подсвечиваем: подсветка была бы подсказкой
+    if (quiz) return tourSpot;
+    if (selectedContext) return { lon: selectedContext.lon, lat: selectedContext.lat, label: selectedContext.title };
+    if (selectedCity && cities) {
+      return { lon: selectedCity.lon, lat: selectedCity.lat, label: cityNameAt(cities, selectedCity, roundedYear) };
+    }
+    if (selection?.kind === 'kb' && kb) {
+      const item = kb.items[selection.id];
+      if (item?.c) return { lon: item.c[0], lat: item.c[1], label: item.n };
+    }
+    if (selection?.kind === 'place') {
+      const place = geo.index.byId.get(selection.id);
+      if (place) return { lon: place.geo.lon, lat: place.geo.lat, label: place.title };
+    }
+    return tourSpot;
+  }, [selectedContext, selectedCity, cities, roundedYear, selection, kb, geo.index.byId, quiz, tourSpot]);
+
+  /** Линия жизни: родился здесь, умер там. Если это один город — линии нет */
+  const lifeLine = useMemo<LifeLine | null>(() => {
+    if (!selectedContext || !('birth' in selectedContext) || quiz) return null;
+    const { dlon, dlat } = selectedContext;
+    if (dlon === null || dlat === null) return null;
+    const from: [number, number] = [selectedContext.lon, selectedContext.lat];
+    const to: [number, number] = [dlon, dlat];
+    if (distanceKm(from, to) < 25) return null;
+    const where = selectedContext.deathPlace ?? 'место смерти';
+    return { from, to, label: `† ${where}${selectedContext.death ? `, ${formatYear(selectedContext.death)}` : ''}` };
+  }, [selectedContext, quiz]);
+
   /** Заметки хранилища рядом с событием или человеком — по времени и месту */
   const nearbyNotes = useMemo<LocatedNote[]>(() => {
     if (!selectedContext) return [];
@@ -579,6 +785,175 @@ export function GlobeView() {
       )
       .slice(0, 8);
   }, [selectedContext, geo.located, geo.index.byId]);
+
+  /** Высота карточки маршрута и шкалы на телефоне — центр шара поднимается над ними */
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [bottomInset, setBottomInset] = useState(0);
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el || !tour) {
+      setBottomInset(0);
+      return;
+    }
+    const narrow = window.matchMedia('(max-width: 639px)');
+    const update = () => setBottomInset(narrow.matches ? el.offsetHeight : 0);
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    update();
+    return () => observer.disconnect();
+  }, [tour]);
+
+  useEffect(() => setShowRest(false), [war, tourId]);
+  const focused = Boolean((war || tour) && !showRest);
+  /** Что маршрут выделяет на карте: места его шагов и точки фона */
+  const tourTargets = useMemo(
+    () => new Set((tour?.steps ?? []).flatMap((s) => (s.selection ? [s.selection.id] : []))),
+    [tour]
+  );
+  const shownMarkers = useMemo(
+    () => (!focused ? markers : war ? [] : markers.filter((m) => tourTargets.has(m.place.id))),
+    [focused, war, markers, tourTargets]
+  );
+  const shownContext = useMemo(
+    () =>
+      !focused
+        ? contextPoints
+        : contextPoints.filter((p) => (war ? p.kind === 'battle' : tourTargets.has(p.id))),
+    [focused, war, contextPoints, tourTargets]
+  );
+
+  /** Шаг маршрута двигает год и поворачивает шар — один раз на шаг */
+  const appliedStep = useRef<string | null>(null);
+  useEffect(() => {
+    if (!tour || !step || quiz) return;
+    const key = `${tour.id}#${step.key}`;
+    if (appliedStep.current === key) return;
+    appliedStep.current = key;
+    setPlaying(false);
+    if (step.year !== null) setYear(Math.max(bounds.min, Math.min(bounds.max, step.year)));
+    if (step.at) setFocus({ lon: step.at[0], lat: step.at[1], token: Date.now() });
+  }, [tour, step, quiz, bounds.min, bounds.max]);
+
+  const startTour = useCallback((id: string) => {
+    if (/^(war|movement):/.test(id)) setWantKb(true);
+    setWar(id.startsWith('war:') ? id.slice(4) : null);
+    appliedStep.current = null;
+    setTourId(id);
+    setTourStep(0);
+    setQuiz(null);
+    setToursOpen(false);
+    setSelection(null);
+    setHistory([]);
+  }, []);
+
+  const closeTour = useCallback(() => {
+    if (tourId?.startsWith('war:')) setWar(null);
+    setTourId(null);
+    setTourStep(0);
+    setQuiz(null);
+    appliedStep.current = null;
+  }, [tourId]);
+
+  const goStep = useCallback(
+    (index: number) => {
+      if (!tour) return;
+      setTourStep(Math.max(0, Math.min(tour.steps.length - 1, index)));
+      setSelection(null);
+    },
+    [tour]
+  );
+
+  /**
+   * Перед вопросом — отъехать: шар, приближенный к прошлому ответу,
+   * подсказывал бы следующий. Центр — середина всех мест вопросов
+   */
+  const overview = useCallback(
+    (indices: number[]) => {
+      if (!tour) return;
+      const points = indices.map((i) => tour.steps[i].at).filter((at): at is [number, number] => at !== null);
+      if (points.length === 0) return;
+      const lon = points.reduce((sum, p) => sum + p[0], 0) / points.length;
+      const lat = points.reduce((sum, p) => sum + p[1], 0) / points.length;
+      setFocus({ lon, lat, token: Date.now(), zoom: 1.1 });
+    },
+    [tour]
+  );
+
+  /** «Где это?»: до пяти шагов с местом, в порядке маршрута */
+  const startQuiz = useCallback(() => {
+    if (!tour) return;
+    // Спрашиваем только о шагах со своим местом: «где было мифологическое мышление» — не вопрос
+    const placed = tour.steps.map((s, i) => (s.at && !s.via ? i : -1)).filter((i) => i >= 0);
+    const picked = [...placed].sort(() => Math.random() - 0.5).slice(0, QUIZ_SIZE).sort((a, b) => a - b);
+    setSelection(null);
+    setQuiz({ steps: picked, index: 0, answers: [], revealed: false });
+    const first = tour.steps[picked[0]];
+    if (first?.year !== null && first?.year !== undefined) setYear(first.year);
+    overview(picked);
+  }, [tour, overview]);
+
+  const answerQuiz = useCallback(
+    (lonLat: [number, number]) => {
+      if (!tour || !quiz || quiz.revealed || quiz.index >= quiz.steps.length) return;
+      const target = tour.steps[quiz.steps[quiz.index]].at!;
+      setQuiz({ ...quiz, answers: [...quiz.answers, kmBetween(lonLat, target)], revealed: true });
+      setFocus({ lon: target[0], lat: target[1], token: Date.now() });
+    },
+    [tour, quiz]
+  );
+
+  const nextQuestion = useCallback(() => {
+    if (!tour || !quiz) return;
+    const index = quiz.index + 1;
+    setQuiz({ ...quiz, index, revealed: false });
+    const asked = tour.steps[quiz.steps[index]];
+    if (asked?.year !== null && asked?.year !== undefined) setYear(asked.year);
+    if (asked) overview(quiz.steps);
+  }, [tour, quiz, overview]);
+
+  /** Что предложить в списке маршрутов */
+  const tourGroups = useMemo(() => {
+    const chapters: TourOption[] = courses.flatMap((course) =>
+      course.chapters.map((chapter) => ({
+        id: `chapter:${chapter.id}`,
+        title: chapter.ordinal ? `${chapter.ordinal}: ${chapter.title}` : chapter.title,
+        sub: `${chapter.lessons.length} ${plural(chapter.lessons.length, 'урок', 'урока', 'уроков')} · ${course.title}`,
+      }))
+    );
+    const wars: TourOption[] = kb
+      ? Object.entries(kb.items)
+          .filter(([, item]) => item.t === 'war')
+          .map(([id, item]) => ({ id, item, count: battlesOf(kb, id).filter((b) => kb.items[b]?.c && kb.items[b]?.f !== undefined).length }))
+          .filter((w) => w.count >= 4)
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10)
+          .map(({ id, item, count }) => ({
+            id: `war:${id}`,
+            title: item.n,
+            sub: `${yearsOf(item, formatYear)} · ${count} ${plural(count, 'сражение', 'сражения', 'сражений')}`,
+          }))
+      : [];
+    // Считаются только те, кого можно поставить на карту: у кого известно место рождения
+    const movements: TourOption[] =
+      kb && kbLinks && context
+        ? Object.keys(kbLinks.members)
+            .filter((id) => kb.items[id])
+            .map((id) => ({ id, count: movementPlaced(kbLinks, context, id) }))
+            .filter((m) => m.count >= 5)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10)
+            .map(({ id, count }) => ({
+              id: `movement:${id}`,
+              title: kb.items[id].n,
+              sub: `${yearsOf(kb.items[id], formatYear)} · ${count} ${plural(count, 'человек', 'человека', 'человек')}`,
+            }))
+        : [];
+    return [
+      { title: 'Главы курса', items: chapters },
+      { title: 'Войны по сражениям', items: wars },
+      { title: 'Течения в людях', items: movements },
+    ];
+  }, [courses, kb, kbLinks, context]);
 
   /** Выбрать — с запоминанием, откуда пришли: панель умеет «назад» */
   const select = useCallback(
@@ -628,10 +1003,13 @@ export function GlobeView() {
         if (place) at = [place.geo.lon, place.geo.lat];
       } else if (next.kind === 'kb' && kb?.items[next.id]?.c) {
         at = kb.items[next.id].c!;
+      } else if (next.kind === 'city' && cities) {
+        const city = cities.byId.get(next.id);
+        if (city) at = [city.lon, city.lat];
       }
       if (at) setFocus({ lon: at[0], lat: at[1], token: Date.now() });
     },
-    [select, context, borders.states, geo.index.byId, kb]
+    [select, context, borders.states, geo.index.byId, kb, cities]
   );
 
   /**
@@ -711,6 +1089,16 @@ export function GlobeView() {
         entries.push({ key: `person:${p.id}`, title: p.title, kind: 'person', year: p.birth, sub: context.groups[p.group] });
       }
     }
+    if (cities) {
+      for (const city of cities.cities) {
+        entries.push({ key: `city:${city.id}`, title: city.name, kind: 'city', year: city.approx ? undefined : (city.from ?? undefined) });
+        // Прежние названия ищутся тоже: «Константинополь» найдёт Стамбул в нужном веке
+        for (const [from, to, name] of cities.renames[city.id] ?? []) {
+          const at = from ?? (to !== null ? to - 1 : null);
+          entries.push({ key: `city:${city.id}@${at ?? ''}`, title: name, kind: 'city', sub: `Город · сейчас ${city.name}`, year: at ?? undefined });
+        }
+      }
+    }
     if (kb) {
       for (const [id, item] of Object.entries(kb.items)) {
         if (item.t === 'battle') continue;
@@ -724,7 +1112,7 @@ export function GlobeView() {
       }
     }
     return entries;
-  }, [geo.index.places, geo.located, index, context, kb]);
+  }, [geo.index.places, geo.located, index, context, kb, cities]);
 
   const pickSearch = useCallback(
     (entry: SearchEntry) => {
@@ -755,9 +1143,17 @@ export function GlobeView() {
         if (item.f !== undefined) changeYear(item.f);
         if (item.t === 'war') showWar(id);
         selectAndFocus({ kind: 'kb', id });
+      } else if (kind === 'city' && cities) {
+        // city:Q406@330 — прежнее название: переходим в его годы
+        const [cityId, at] = id.split('@');
+        const city = cities.byId.get(cityId);
+        if (!city) return;
+        if (at) changeYear(Number(at));
+        else if (!cityExistsAt(city, roundedYear)) changeYear(city.from ?? UNDATED_FROM);
+        selectAndFocus({ kind: 'city', id: cityId });
       }
     },
-    [selectAndFocus, geo.located, changeYear, index, roundedYear, context, kb, showWar]
+    [selectAndFocus, geo.located, changeYear, index, roundedYear, context, kb, showWar, cities]
   );
 
   const pickLane = useCallback(
@@ -782,7 +1178,10 @@ export function GlobeView() {
         if (!(target instanceof HTMLInputElement && target.type === 'range')) return;
         return;
       }
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      if (tour && !quiz && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+        event.preventDefault();
+        goStep(tourIndex + (event.key === 'ArrowLeft' ? -1 : 1));
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault();
         const delta = event.key === 'ArrowLeft' ? -settings.step : settings.step;
         setPlaying(false);
@@ -792,13 +1191,15 @@ export function GlobeView() {
         togglePlay();
       } else if (event.key === 'Escape') {
         if (selection) close();
+        else if (tour) closeTour();
         else if (war) setWar(null);
         setSettingsOpen(false);
+        setToursOpen(false);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [settings.step, bounds.min, bounds.max, togglePlay, selection, war, close]);
+  }, [settings.step, bounds.min, bounds.max, togglePlay, selection, war, close, tour, quiz, goStep, tourIndex, closeTour]);
 
   if (geo.index.places.length === 0) {
     return (
@@ -809,7 +1210,7 @@ export function GlobeView() {
   }
 
   const panelOpen = Boolean(
-    selectedPlace || selection?.kind === 'state' || selectedContext || (selection?.kind === 'kb' && kb)
+    selectedPlace || selection?.kind === 'state' || selectedContext || selectedCity || (selection?.kind === 'kb' && kb)
   );
   const statesCount = borders.states.filter((s) => !s.union).length;
   const selectedQid = selectedState ? qidOf(selectedState) : undefined;
@@ -843,18 +1244,24 @@ export function GlobeView() {
       >
         <GlobeCanvas
           mode={mode}
-          markers={markers}
-          arcs={arcs}
+          markers={shownMarkers}
+          arcs={focused ? [] : arcs}
           states={layers.states ? stateLayers : []}
           background={layers.background ? backgroundLayers : []}
           capitals={capitals}
-          context={contextPoints}
+          cities={cityPoints}
+          context={shownContext}
           selection={selection}
           onSelect={(next) => (next ? select(next) : close())}
-          autoRotate={!selection && !playing && !war}
+          autoRotate={!selection && !playing && !war && !tour}
           focus={focus}
           density={DENSITY_FACTOR[settings.density]}
           showLabels={layers.labels}
+          spotlight={spotlight}
+          lifeLine={lifeLine}
+          showGeography={layers.geography}
+          insetBottom={bottomInset}
+          onPoint={quiz && !quiz.revealed && quiz.index < quiz.steps.length ? answerQuiz : undefined}
         />
       </div>
 
@@ -906,6 +1313,20 @@ export function GlobeView() {
           <button
             type="button"
             onClick={() => {
+              setToursOpen((open) => !open);
+              setSettingsOpen(false);
+              setWantKb(true);
+            }}
+            className={toolbarButton(toursOpen || Boolean(tour))}
+            aria-expanded={toursOpen}
+            title="Маршруты: главы курса, войны, течения — шаг за шагом по карте"
+          >
+            <Route className="h-3.5 w-3.5" aria-hidden />
+            <span className="hidden sm:inline">Маршруты</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               setSearchOpen((open) => !open);
               setWantKb(true);
             }}
@@ -923,6 +1344,14 @@ export function GlobeView() {
           onFocus={() => setWantKb(true)}
           className={cn('w-[min(360px,calc(100vw-24px))]', !searchOpen && 'hidden sm:block')}
         />
+
+        {toursOpen && (
+          <GlobeTourMenu
+            groups={tourGroups}
+            note={!kb ? (kbMissing ? 'Войны и течения появятся после pnpm kb.' : 'Загружаю войны и течения…') : undefined}
+            onPick={startTour}
+          />
+        )}
 
         {settingsOpen && (
           <GlobeSettingsPanel
@@ -955,6 +1384,13 @@ export function GlobeView() {
             </ul>
           </div>
         )}
+
+        {/* Обозначения: что за точки и линии — для тех, кто видит карту впервые */}
+        {!settingsOpen && !toursOpen && (
+          <div className="hidden sm:block">
+            <GlobeLegend layers={layers} war={Boolean(war)} />
+          </div>
+        )}
       </div>
 
       {/* Режим войны */}
@@ -974,6 +1410,16 @@ export function GlobeView() {
                 {warItem.p && ` · ${warItem.p.length} ${plural(warItem.p.length, 'сторона', 'стороны', 'сторон')}`}
               </span>
             </button>
+            <button
+              type="button"
+              onClick={() => setShowRest((v) => !v)}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[12px] text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-pressed={showRest}
+              title={showRest ? 'Оставить на карте только войну' : 'Вернуть людей, события, дуги и свои места'}
+            >
+              {showRest ? <EyeOff className="h-3.5 w-3.5" aria-hidden /> : <Eye className="h-3.5 w-3.5" aria-hidden />}
+              <span className="hidden sm:inline">{showRest ? 'Только война' : 'Показать всё'}</span>
+            </button>
             <button type="button" onClick={() => setWar(null)} className="shrink-0 text-muted-foreground hover:text-foreground" aria-label="Выйти из режима войны">
               <X className="h-4 w-4" />
             </button>
@@ -987,7 +1433,7 @@ export function GlobeView() {
           <p className="mb-1.5 font-medium">Как пользоваться</p>
           <ul className="space-y-1 text-muted-foreground">
             <li>Щёлкните по стране, городу или точке — откроется справка.</li>
-            <li>Ползунок внизу — год; ‹ › или стрелки — шаг; ▶ или пробел — проиграть историю.</li>
+            <li>Ползунок внизу — год; ‹ › или стрелки — шаг, рядом выбирается 1, 10 или 100 лет; ▶ или пробел — проиграть историю.</li>
             <li>«Ленты» — эпохи, течения и войны рядом по времени.</li>
             <li>Приблизьте — появятся подписи событий, людей и столиц.</li>
             <li>«Настройки» — что показывать и как раскрасить карту.</li>
@@ -1000,12 +1446,34 @@ export function GlobeView() {
 
       {/* Год и проигрывание: при открытой панели — левее неё, а не под ней */}
       <div
+        ref={bottomRef}
         className={cn(
           'pointer-events-none absolute inset-x-0 bottom-0 z-10 p-2 sm:p-4',
           (panelOpen || meanwhileOpen) && 'sm:right-[380px]',
           (panelOpen || meanwhileOpen) && 'max-sm:hidden'
         )}
       >
+        {tour && step && (
+          <div className="mx-auto mb-2 flex max-w-3xl">
+            <GlobeTour
+              tour={tour}
+              step={tourIndex}
+              readIds={lessonsRead}
+              quiz={quiz}
+              showRest={showRest}
+              onToggleRest={() => setShowRest((v) => !v)}
+              onStep={goStep}
+              onClose={closeTour}
+              onOpenNote={(noteId) => {
+                markLessonRead(noteId);
+                navigate(`/note/${noteId}`);
+              }}
+              onDetails={() => step.selection && select(step.selection)}
+              onStartQuiz={startQuiz}
+              onNextQuestion={nextQuestion}
+            />
+          </div>
+        )}
         {lanesOpen && (
           <GlobeLanes
             year={roundedYear}
@@ -1023,6 +1491,9 @@ export function GlobeView() {
           max={bounds.max}
           playing={playing}
           step={settings.step}
+          speed={settings.speed}
+          onStep={(step) => update({ step })}
+          onSpeed={(speed) => update({ speed })}
           bands={bands}
           ticks={ticks}
           onYear={changeYear}
@@ -1085,6 +1556,25 @@ export function GlobeView() {
             />
           ) : selectedContext && context ? (
             <ContextPanel item={selectedContext} context={context} nearby={nearbyNotes} onClose={close} onBack={onBack} />
+          ) : selectedCity && cities && cityFacts ? (
+            <CityPanel
+              city={selectedCity}
+              data={cities}
+              year={roundedYear}
+              facts={cityFacts}
+              onClose={close}
+              onBack={onBack}
+              onSelect={(next) => {
+                // Человек из другого века — переносимся в его годы, иначе его точки не будет
+                if (next.kind === 'context' && context) {
+                  const person = context.people.find((p) => p.id === next.id);
+                  const event = context.events.find((e) => e.id === next.id);
+                  if (person && !isAlive(person, roundedYear)) changeYear(person.birth + 25);
+                  if (event) changeYear(event.year);
+                }
+                selectAndFocus(next);
+              }}
+            />
           ) : selection?.kind === 'kb' && kb ? (
             <KbPanel
               key={selection.id}

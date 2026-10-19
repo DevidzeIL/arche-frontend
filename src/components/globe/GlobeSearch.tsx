@@ -4,7 +4,7 @@ import { normalizeTitle } from '@/arche/normalize';
 import { formatYear } from '@/arche/timeSpan';
 import { cn } from '@/lib/utils';
 
-export type SearchKind = 'place' | 'note' | 'state' | 'event' | 'person' | 'kb';
+export type SearchKind = 'place' | 'note' | 'state' | 'event' | 'person' | 'kb' | 'city';
 
 export interface SearchEntry {
   /** Уникальный ключ записи */
@@ -25,6 +25,7 @@ const KIND_LABEL: Record<SearchKind, string> = {
   event: 'Событие',
   person: 'Человек',
   kb: 'Справка',
+  city: 'Город',
 };
 
 const LIMIT = 12;

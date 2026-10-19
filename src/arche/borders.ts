@@ -16,6 +16,7 @@ import { geoArea, geoCentroid, geoContains } from 'd3-geo';
 import type { Topology, GeometryCollection } from 'topojson-specification';
 import type { FeatureCollection, MultiPolygon, Polygon, Position } from 'geojson';
 import { names, patches } from 'virtual:arche-borders';
+import { polylabel } from './polylabel';
 import {
   bboxOf,
   coarsen,
@@ -80,20 +81,37 @@ export interface BackgroundShape {
   label: [number, number];
 }
 
+/** Не больше стольких вершин на кольцо при поиске места для подписи: точность подписи не нужна до метра */
+const LABEL_VERTICES = 300;
+
+/**
+ * Куда ставить подпись: в самый большой кусок (у Британской империи центр
+ * всей фигуры — посреди океана), в его полюс недоступности — точку, дальше
+ * всего от краёв. Центр тяжести вогнутой фигуры бывает снаружи: Османская
+ * империя подписывалась посреди Средиземного моря
+ */
 function labelPoint(area: Area): [number, number] {
-  if (area.geometry.type === 'Polygon') return geoCentroid(area) as [number, number];
-  // У Османской империи центр всей фигуры может оказаться в море,
-  // а у Британской — вовсе посреди океана
-  let best: Position[][] = area.geometry.coordinates[0];
-  let bestArea = -1;
-  for (const polygon of area.geometry.coordinates) {
-    const size = geoArea({ type: 'Polygon', coordinates: polygon });
-    if (size > bestArea) {
-      bestArea = size;
-      best = polygon;
+  let best: Position[][] =
+    area.geometry.type === 'Polygon' ? area.geometry.coordinates : area.geometry.coordinates[0];
+  if (area.geometry.type === 'MultiPolygon') {
+    let bestArea = -1;
+    for (const polygon of area.geometry.coordinates) {
+      const size = geoArea({ type: 'Polygon', coordinates: polygon });
+      if (size > bestArea) {
+        bestArea = size;
+        best = polygon;
+      }
     }
   }
-  return geoCentroid({ type: 'Polygon', coordinates: best }) as [number, number];
+  const thin = best.map((ring) => {
+    const step = Math.ceil(ring.length / LABEL_VERTICES);
+    return step > 1 ? ring.filter((_, i) => i % step === 0) : ring;
+  });
+  const point = polylabel(thin);
+  // Кольцо через антимеридиан или вырожденная фигура — тогда по-старому
+  return Number.isFinite(point[0]) && Number.isFinite(point[1])
+    ? point
+    : (geoCentroid({ type: 'Polygon', coordinates: best }) as [number, number]);
 }
 
 function readAreas(topology: Topology): Area[] {

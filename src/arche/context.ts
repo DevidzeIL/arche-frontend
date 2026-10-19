@@ -38,6 +38,9 @@ export interface ContextPerson {
   /** Место рождения: так в Wikidata, а не «где работал» */
   place: string | null;
   deathPlace: string | null;
+  /** Место смерти точкой — для линии жизни; null — неизвестно */
+  dlon: number | null;
+  dlat: number | null;
   group: string;
   links: number;
   ru: string | null;

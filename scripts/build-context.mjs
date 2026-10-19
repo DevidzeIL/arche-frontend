@@ -263,9 +263,31 @@ async function buildPeople() {
     console.log(`  ${meta.label}: ${added}`);
   }
 
+  /**
+   * Где умер — точкой: на глобусе из этого получается линия жизни, Кант
+   * без неё (родился и умер в Кёнигсберге), Декарт — из Лаэ в Стокгольм.
+   * Отдельным лёгким запросом по готовому списку, чтобы не пересобирать
+   * тяжёлые выборки по занятиям
+   */
+  const ids = [...people.keys()].sort();
+  for (const [i, batch] of chunk(ids, 300).entries()) {
+    const rows = await sparql(
+      `SELECT ?item ?coord WHERE {
+  VALUES ?item { ${batch.map((id) => `wd:${id}`).join(' ')} }
+  ?item wdt:P20 ?place. ?place wdt:P625 ?coord.
+}`,
+      `death-places-${i}-${batch.length}`
+    );
+    for (const row of firstPerItem(rows)) {
+      const person = people.get(idOf(row.item.value));
+      const point = pointOf(row.coord.value);
+      if (person && point) [person.dlon, person.dlat] = point;
+    }
+  }
+
   const fields = [
     'id', 'title', 'description', 'birth', 'death', 'lon', 'lat', 'place', 'deathPlace',
-    'group', 'links', 'ru', 'en',
+    'group', 'links', 'ru', 'en', 'dlon', 'dlat',
   ];
   fs.writeFileSync(
     path.join(OUT, 'people.json'),

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, BookOpenCheck, Circle, Play, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpenCheck, Circle, Play, RotateCcw, Route } from 'lucide-react';
 import { useArcheStore } from '@/arche/state/store';
 import { useProgressStore, PASS_SCORE } from '@/arche/learning/progressStore';
 import { buildCourses } from '@/arche/learning/curriculum';
@@ -137,10 +137,19 @@ export function ChapterPage() {
                     )}
                   </p>
                 </div>
-                <Button onClick={startQuiz} data-start-quiz>
-                  <Play className="mr-2 h-4 w-4" aria-hidden />
-                  {chapterState?.attempts ? 'Пройти ещё раз' : 'Начать тест'}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {/* Та же глава картой: год и место каждого урока по порядку */}
+                  <Button variant="outline" asChild>
+                    <Link to={`/globe?tour=${encodeURIComponent(`chapter:${chapter.id}`)}`}>
+                      <Route className="mr-2 h-4 w-4" aria-hidden />
+                      На глобусе
+                    </Link>
+                  </Button>
+                  <Button onClick={startQuiz} data-start-quiz>
+                    <Play className="mr-2 h-4 w-4" aria-hidden />
+                    {chapterState?.attempts ? 'Пройти ещё раз' : 'Начать тест'}
+                  </Button>
+                </div>
               </div>
             </div>
           </>
