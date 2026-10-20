@@ -11,6 +11,7 @@ import {
 import { readThemeColors, type ThemeColors } from '@/components/map/mapRender';
 import { worldLand } from './worldLand';
 import { loadDetailedLand, loadGeography, type Geography } from './geography';
+import { useLeftPage } from './useLeftPage';
 import type { FeatureCollection, MultiPolygon } from 'geojson';
 import type { Place } from '@/arche/geo';
 import type { Area } from '@/arche/bordersData';
@@ -319,6 +320,8 @@ export function GlobeCanvas({
 }: GlobeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  /** Ушли со страницы — покадровые анимации останавливаются, иначе переход на другую страницу не дорисуется */
+  const leftPage = useLeftPage();
   /** Пульсирующее кольцо поверх холста: CSS-анимация, чтобы не перерисовывать карту каждый кадр */
   const pulseRef = useRef<HTMLDivElement>(null);
   /** Города, нарисованные в последний кадр, — по ним ищется щелчок */
@@ -430,6 +433,7 @@ export function GlobeCanvas({
     let last = performance.now();
 
     const tick = (now: number) => {
+      if (leftPage()) return;
       const delta = now - last;
       last = now;
       if (!dragRef.current) {
@@ -440,7 +444,7 @@ export function GlobeCanvas({
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [autoRotating]);
+  }, [autoRotating, leftPage]);
 
   const radius = Math.min(size.width, size.height) * FILL * zoom;
   /** Вертикальный центр вида: середина того, что не закрыто снизу */
@@ -519,6 +523,7 @@ export function GlobeCanvas({
     const started = performance.now();
     setInteracting(true);
     const step = (now: number) => {
+      if (leftPage()) return;
       const t = Math.min(1, (now - started) / 700);
       const e = 1 - Math.pow(1 - t, 3);
       setRotation([

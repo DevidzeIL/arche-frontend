@@ -12,6 +12,7 @@ import { polityKey, type BordersIndex } from '@/arche/bordersData';
 import { categoryOf, COLORINGS, type Coloring } from '@/arche/coloring';
 import { atlasHues } from '@/arche/atlasColors';
 import { GlobeLegend } from './GlobeLegend';
+import { useLeftPage } from './useLeftPage';
 import {
   eventsAround,
   isAlive,
@@ -117,7 +118,7 @@ function seenHints(): boolean {
 export function GlobeView() {
   const notes = useArcheStore((s) => s.notes);
   const graph = useArcheStore((s) => s.knowledgeGraph);
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   // Адрес читается один раз: дальше он только отражает состояние глобуса
   const initial = useRef(new URLSearchParams(params));
   const { settings, update, setLayer, reset } = useGlobeSettings();
@@ -192,6 +193,7 @@ export function GlobeView() {
     Number.isFinite(initialYear) && initial.current.has('year') ? initialYear : bounds.max
   );
   const [playing, setPlaying] = useState(false);
+  const leftPage = useLeftPage();
   const [selection, setSelection] = useState<GlobeSelection | null>(() => selectionFromParams(initial.current));
   const [history, setHistory] = useState<GlobeSelection[]>([]);
   const [mode, setMode] = useState<GlobeMode>(initial.current.get('mode') === 'flat' ? 'flat' : 'globe');
@@ -232,11 +234,22 @@ export function GlobeView() {
     if (place) setFocus({ lon: place.geo.lon, lat: place.geo.lat, token: Date.now() });
   }, [geo.index.byId]);
 
-  // Состояние — в адрес: таким видом можно поделиться ссылкой
+  /*
+   * Состояние — в адрес: таким видом можно поделиться ссылкой.
+   *
+   * Пишется мимо роутера, через history.replaceState. Через setSearchParams
+   * каждая запись была навигацией: она отменяла уже начатый переход по ссылке
+   * в шапке (страница ещё грузилась — и тут глобус «переходил» сам на себя),
+   * а новая личность setSearchParams после каждой записи перезапускала этот
+   * же эффект — и так по кругу каждые 350 мс. Адрес нужен только для ссылки
+   * и для «назад» в браузере; роутеру знать о каждом годе незачем
+   */
   const roundedYear = Math.round(year);
   useEffect(() => {
     if (playing) return;
     const timer = window.setTimeout(() => {
+      // Уже ушли со страницы — адрес глобуса поверх чужой страницы не пишем
+      if (leftPage()) return;
       const next = new URLSearchParams();
       next.set('year', String(roundedYear));
       if (mode === 'flat') next.set('mode', 'flat');
@@ -251,10 +264,14 @@ export function GlobeView() {
         next.set('tour', tourId);
         next.set('step', String(tourStep));
       }
-      setParams(next, { replace: true });
+      const url = `${window.location.pathname}?${next.toString()}`;
+      if (url !== window.location.pathname + window.location.search) {
+        // Состояние истории — роутера: без него «назад» потеряло бы свою запись
+        window.history.replaceState(window.history.state, '', url);
+      }
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [roundedYear, mode, settings.coloring, war, selection, playing, setParams, tourId, tourStep]);
+  }, [roundedYear, mode, settings.coloring, war, selection, playing, tourId, tourStep, leftPage]);
 
   // Проигрывание истории: год ползёт от начала к концу
   useEffect(() => {
@@ -266,6 +283,8 @@ export function GlobeView() {
     let last = performance.now();
 
     const tick = (now: number) => {
+      // Ушли со страницы — не перебиваем переход на неё обновлением года
+      if (leftPage()) return;
       const delta = (now - last) / 1000;
       last = now;
       setYear((current) => {
@@ -281,7 +300,7 @@ export function GlobeView() {
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playing, bounds.min, bounds.max, settings.speed]);
+  }, [playing, bounds.min, bounds.max, settings.speed, leftPage]);
 
   const togglePlay = useCallback(() => {
     setPlaying((current) => {
